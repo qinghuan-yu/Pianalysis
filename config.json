@@ -1,0 +1,56 @@
+{
+  "project_name": "Pianalysis - 符号化音乐生成",
+  "description": "基于 GPT-2 的条件音乐生成模型（Melody -> Full Polyphony）",
+  
+  "data": {
+    "format": "JSON (List of Compound Tokens)",
+    "data_dir": "./data",
+    "token_format": "EVENT_PARAM_METADATA",
+    "examples": [
+      "TIME_SHIFT_10",
+      "NOTE_ON_60_80_MELODY",
+      "NOTE_OFF_60_MELODY",
+      "NOTE_ON_45_70_ACCOMP",
+      "NOTE_OFF_45_ACCOMP"
+    ]
+  },
+  
+  "tokenizer": {
+    "type": "WordLevel",
+    "special_tokens": ["<PAD>", "<BOS>", "<EOS>", "<SEP>", "<UNK>"],
+    "save_path": "./tokenizer"
+  },
+  
+  "model": {
+    "architecture": "GPT-2",
+    "config": {
+      "n_positions": 2048,
+      "n_embd": 512,
+      "n_layer": 6,
+      "n_head": 8,
+      "resid_pdrop": 0.1,
+      "embd_pdrop": 0.1,
+      "attn_pdrop": 0.1
+    }
+  },
+  
+  "training": {
+    "output_dir": "./output",
+    "max_length": 1024,
+    "batch_size": 8,
+    "epochs": 10,
+    "learning_rate": 5e-4,
+    "warmup_steps": 500,
+    "save_steps": 1000,
+    "logging_steps": 100,
+    "train_test_split": 0.8
+  },
+  
+  "generation": {
+    "max_length": 1024,
+    "temperature": 1.0,
+    "top_k": 50,
+    "top_p": 0.95,
+    "num_return_sequences": 3
+  }
+}
