@@ -1,56 +1,52 @@
 {
-  "project_name": "Pianalysis - 符号化音乐生成",
-  "description": "基于 GPT-2 的条件音乐生成模型（Melody -> Full Polyphony）",
-  
+  "project_name": "Pianalysis",
+  "description": "Melody-conditioned symbolic piano accompaniment generation",
   "data": {
-    "format": "JSON (List of Compound Tokens)",
-    "data_dir": "./data",
-    "token_format": "EVENT_PARAM_METADATA",
-    "examples": [
-      "TIME_SHIFT_10",
-      "NOTE_ON_60_80_MELODY",
-      "NOTE_OFF_60_MELODY",
-      "NOTE_ON_45_70_ACCOMP",
-      "NOTE_OFF_45_ACCOMP"
-    ]
+    "training_dataset": "data/training_windows_v1/dataset_windows_v1.json",
+    "format": "[BOS] source_melody [SEP] target_accompaniment [EOS]",
+    "tokenizer_version": "pianalysis_numeric_v1",
+    "max_length": 1024,
+    "loss_rule": "Mask source tokens before target_start_index and mask padding with -100"
   },
-  
-  "tokenizer": {
-    "type": "WordLevel",
-    "special_tokens": ["<PAD>", "<BOS>", "<EOS>", "<SEP>", "<UNK>"],
-    "save_path": "./tokenizer"
+  "token_ids": {
+    "PAD": 0,
+    "BOS": 1,
+    "SEP": 2,
+    "EOS": 3,
+    "TIME": 4,
+    "NOTE_ON_MELODY": 10,
+    "NOTE_OFF_MELODY": 11,
+    "NOTE_ON_ACCOMP": 20,
+    "NOTE_OFF_ACCOMP": 21
   },
-  
   "model": {
-    "architecture": "GPT-2",
-    "config": {
-      "n_positions": 2048,
-      "n_embd": 512,
-      "n_layer": 6,
-      "n_head": 8,
-      "resid_pdrop": 0.1,
-      "embd_pdrop": 0.1,
-      "attn_pdrop": 0.1
-    }
+    "architecture": "GPT-2 causal LM",
+    "n_positions": 1024,
+    "n_embd": 512,
+    "n_layer": 6,
+    "n_head": 8,
+    "dropout": 0.1
   },
-  
   "training": {
-    "output_dir": "./output",
-    "max_length": 1024,
+    "output_dir": "model_output/accompaniment_gpt2",
     "batch_size": 8,
-    "epochs": 10,
-    "learning_rate": 5e-4,
-    "warmup_steps": 500,
-    "save_steps": 1000,
-    "logging_steps": 100,
-    "train_test_split": 0.8
+    "eval_batch_size": 8,
+    "epochs": 4,
+    "learning_rate": 0.0005,
+    "warmup_steps": 200,
+    "save_steps": 250,
+    "eval_steps": 250,
+    "logging_steps": 25,
+    "eval_ratio_by_piece": 0.1,
+    "seed": 42,
+    "early_stopping_patience": 3
   },
-  
   "generation": {
-    "max_length": 1024,
-    "temperature": 1.0,
+    "script": "generate_from_scratch.py",
+    "model_path": "model_output/accompaniment_gpt2/final_model",
+    "max_new_tokens": 512,
+    "temperature": 0.9,
     "top_k": 50,
-    "top_p": 0.95,
-    "num_return_sequences": 3
+    "top_p": 0.95
   }
 }

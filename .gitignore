@@ -1,0 +1,11 @@
+.deps/
+.venv/
+MIDI/
+data/
+model_output/
+tokenizer/
+generated*.json
+generated*.mid
+_external_vue_piano/
+__pycache__/
+*.pyc
