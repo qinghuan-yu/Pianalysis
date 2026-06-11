@@ -4,6 +4,7 @@ MIDI/
 data/
 model_output/
 tokenizer/
+test/
 generated*.json
 generated*.mid
 _external_vue_piano/

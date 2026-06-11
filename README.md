@@ -47,7 +47,7 @@ Generated local data is intentionally ignored by Git:
 MIDI/
 data/
 model_output/
-.deps/
+test/
 ```
 
 ## Data Preparation
@@ -111,6 +111,12 @@ model_output/accompaniment_gpt2/eval_results.json
 
 ## Generation
 
+Generate accompaniment from a standalone melody MIDI:
+
+```bash
+python generate_from_scratch.py --model-path model_output/accompaniment_gpt2_e20/final_model --melody-midi test/test1.mid --out-midi test/test1_generated.mid --out-json test/test1_generated.json
+```
+
 Generate accompaniment from a melody source in the training-window dataset:
 
 ```bash
@@ -125,10 +131,24 @@ Despite the historical filename, `generate_from_scratch.py` is now conditional. 
 
 as prompt, generates accompaniment tokens, decodes them to notes, and exports a MIDI containing original melody + generated accompaniment.
 
+Generation also applies a conservative postprocess pass:
+
+```text
+pitch-range clamp
+maximum note duration
+minimum note duration
+same-pitch overlap merge
+maximum simultaneous accompaniment notes
+melody-clearance filtering
+truncate accompaniment after melody end
+optional empty-bar bass fill
+```
+
+The JSON output includes a `sanitation_report` so bad generations can be compared numerically instead of only by listening.
+
 ## Important Caveats
 
 - The current melody labels are weak labels from enhanced Skyline + DP.
 - Priority manual-review files are listed in `DATA_CLEANING_DP_V1.md`.
-- Token representation is now documented and reversible, but it is still a compact numeric event stream. A future version should move to a clearer symbolic vocabulary or compound tokens.
+- Token representation is now documented and reversible, but it is still a compact numeric event stream. `TOKENIZER_V2.md` defines the next note-duration/bar-position representation; it requires a fresh dataset and fresh checkpoint because old V1 checkpoints are not vocabulary-compatible.
 - `vue-piano` should remain a separate annotation UI project. This repo should only keep shared schemas and data-processing/training code.
-
