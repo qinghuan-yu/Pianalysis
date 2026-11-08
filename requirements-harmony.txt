@@ -1,0 +1,5 @@
+# Install alongside requirements.txt; optional harmony annotation/review tools.
+chorder==0.1.4
+miditoolkit==1.0.1
+mir_eval==0.8.2
+scipy==1.14.1

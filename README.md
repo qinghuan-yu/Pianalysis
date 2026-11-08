@@ -30,6 +30,12 @@ V1/V1.1 checkpoints remain supported when supplied with matching inputs. See
 [TOKEN_PROTOCOL_V1_1.md](TOKEN_PROTOCOL_V1_1.md) for the earlier protocol and
 [HARMONY_V1.md](HARMONY_V1.md) for the optional harmony-conditioning workflow.
 
+The next stage is a timed harmony annotation and block-chord audition baseline,
+documented in [HARMONY_V2_BASELINE.md](HARMONY_V2_BASELINE.md). It annotates the
+40 local pieces plus four POP909 samples and exports simple chord columns for
+review. The current test melody uses the user's D-major IV–V–vi–iii progression.
+These labels remain under review and have not been used for new model training.
+
 The old `dataset_final.json` / `checkpoint-6000` flow has been replaced. The project now builds its own local dataset from the `MIDI/` folder and trains on:
 
 ```text
@@ -215,11 +221,14 @@ The controlled evaluation measures raw notes before postprocessing.
 ## Verification
 
 ```powershell
+python -m pip install -r requirements-harmony.txt
 python -m unittest discover -s tests -v
 python scripts/evaluate_tsd_v2.py --out-dir data/tsd_v2_audit/evaluation_new
 ```
 
-There are 32 regression tests. Evaluation requires the local V1.1 and V2
+There are 51 regression tests, including 19 harmony annotation/rendering tests.
+The harmony dependencies are optional for TSD generation but required for the
+full test suite. Evaluation requires the local V1.1 and V2
 models/datasets and refuses to overwrite an existing summary.
 
 ## Important Caveats

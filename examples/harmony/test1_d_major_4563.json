@@ -1,0 +1,17 @@
+{
+  "melody_file": "test/test1.mid",
+  "melody_sha256": "a75949325c81df996385db6fe63408619f528a5c1d569ae95586df4ecc371360",
+  "beat_unit": "quarter_note",
+  "source": "user_specified_progression",
+  "key_context": "D:maj",
+  "review_status": "progression_confirmed_timing_pending",
+  "user_feedback": "和声走向应该是D大调的4563.",
+  "timing_assumption": "每个和弦持续一小节，4/4，共两轮；换和弦位置尚待试听确认。",
+  "candidates": [
+    {
+      "id": "test1_4563",
+      "title": "test1 · 用户指定 D 大调 4–5–6–3：G–A–Bm–F♯m",
+      "events": [[0, 4, "G:maj"], [4, 8, "A:maj"], [8, 12, "B:min"], [12, 16, "F#:min"], [16, 20, "G:maj"], [20, 24, "A:maj"], [24, 28, "B:min"], [28, 32, "F#:min"]]
+    }
+  ]
+}
