@@ -226,7 +226,7 @@ python -m unittest discover -s tests -v
 python scripts/evaluate_tsd_v2.py --out-dir data/tsd_v2_audit/evaluation_new
 ```
 
-There are 51 regression tests, including 19 harmony annotation/rendering tests.
+There are 54 regression tests, including 22 harmony annotation/rendering tests.
 The harmony dependencies are optional for TSD generation but required for the
 full test suite. Evaluation requires the local V1.1 and V2
 models/datasets and refuses to overwrite an existing summary.

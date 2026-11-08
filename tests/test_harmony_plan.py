@@ -202,6 +202,73 @@ class AnnotationTests(unittest.TestCase):
 
 
 class ReviewArtifactTests(unittest.TestCase):
+    def test_chords_change_between_note_onsets_without_cutting_sustained_melody(self):
+        midi = pretty_midi.PrettyMIDI(resolution=96, initial_tempo=120)
+        instrument = pretty_midi.Instrument(0, name="MELODY")
+        boundaries = [0, 48, 96, 144, 192, 240, 336, 384, 432, 528, 576, 624, 768, 816]
+        pitches = [78, 78, 78, 76, 74, 76, 74, 76, 78, 76, 74, 76, 78]
+        instrument.notes = [pretty_midi.Note(80, pitch, midi.tick_to_time(a), midi.tick_to_time(b))
+                            for pitch, a, b in zip(pitches, boundaries, boundaries[1:])][::-1]
+        midi.instruments = [instrument]
+        config = {"source": "user_specified_progression", "key_context": "D:maj",
+                  "review_status": "timing_inferred_from_user_ranges", "candidates": [{"id": "pickup",
+                  "timed_events": [
+                      {"start_quarter": 3, "end_quarter": 7, "symbol": "G:maj", "onset_between_notes": [6, 7],
+                       "source": "metrical_inference_from_user_ranges", "review_status": "timing_inferred"},
+                      {"start_quarter": 7, "end_quarter": 8.5, "symbol": "A:maj", "onset_between_notes": [12, 13],
+                       "source": "metrical_inference_from_user_ranges", "review_status": "timing_inferred"}]}]}
+        plan = review.plans_from_config(midi, config)[0]
+        self.assertEqual([(x["start_tick"], x["end_tick"], x["symbol"]) for x in plan["labels"]],
+                         [(0, 288, "X"), (288, 672, "G:maj"), (672, 816, "A:maj")])
+        self.assertEqual(plan["labels"][1]["review_status"], "timing_inferred")
+        self.assertEqual(plan["labels"][1]["source"], "metrical_inference_from_user_ranges")
+        self.assertEqual(plan["labels"][1]["onset_between_notes"], [6, 7])
+        self.assertEqual(plan["labels"][0]["review_status"], "unreviewed")
+        melody = [vars(n) for n in instrument.notes]
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "pickup.mid"
+            hp.write_block_midi(midi, melody, plan, path)
+            self.assertTrue(all(review.validate_render(midi, melody, plan, path).values()))
+            rendered = pretty_midi.PrettyMIDI(str(path))
+            blocks = [n for i in rendered.instruments if i.name == "BLOCK_CHORDS" for n in i.notes]
+            self.assertEqual({int(rendered.time_to_tick(n.start)) for n in blocks}, {288, 672})
+            self.assertEqual({int(rendered.time_to_tick(n.end)) for n in blocks}, {672, 816})
+
+    def test_onset_ranges_reject_ambiguous_melody_and_out_of_range_chord_onsets(self):
+        midi = pretty_midi.PrettyMIDI()
+        instrument = pretty_midi.Instrument(0)
+        instrument.notes = [pretty_midi.Note(80, 74, 0, 1), pretty_midi.Note(80, 76, 1, 2)]
+        midi.instruments = [instrument]
+        for first, last in ((0, 1), (1, 3), (2, 1), (1.5, 2), (True, 2)):
+            with self.subTest(first=first, last=last):
+                config = {"candidates": [{"id": "bad", "timed_events": [
+                    {"start_quarter": 1, "end_quarter": 3, "onset_between_notes": [first, last], "symbol": "G:maj"}]}]}
+                with self.assertRaisesRegex(ValueError, "note range"):
+                    review.plans_from_config(midi, config)
+        for start in (0, 2, 3):
+            config = {"candidates": [{"id": "outside", "timed_events": [
+                {"start_quarter": start, "end_quarter": 4, "onset_between_notes": [1, 2], "symbol": "G:maj"}]}]}
+            with self.assertRaisesRegex(ValueError, "between note onsets"):
+                review.plans_from_config(midi, config)
+        instrument.notes[1].start = 0.5
+        config = {"candidates": [{"id": "polyphonic", "timed_events": [
+            {"start_quarter": 0.5, "end_quarter": 4, "onset_between_notes": [1, 2], "symbol": "G:maj"}]}]}
+        with self.assertRaisesRegex(ValueError, "monophonic"):
+            review.plans_from_config(midi, config)
+
+    def test_audition_keeps_event_review_status_visible(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            midi = make_midi(Path(tmp) / "source.mid")
+            plan = review.make_manual_plan(midi, "mixed", [(0, 1, "C:maj"), (1, 4, "C:maj")])
+            plan["labels"][0]["review_status"] = "user_confirmed"
+            plan["labels"][1]["review_status"] = "unreviewed"
+            items = []
+            review.add_audition(items, Path(tmp), "mixed", "Mixed evidence", midi, plan)
+            self.assertEqual([e["review_status"] for e in items[0]["events"]], ["user_confirmed", "unreviewed"])
+            review.write_review_page(items, Path(tmp))
+            page = (Path(tmp) / "review/index.html").read_text(encoding="utf-8")
+            self.assertIn("user_confirmed", page)
+
     def test_user_progression_preserves_d_major_4563_and_is_not_claimed_fully_reviewed(self):
         midi = pretty_midi.PrettyMIDI(resolution=480, initial_tempo=120)
         instrument = pretty_midi.Instrument(0)

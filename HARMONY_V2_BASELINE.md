@@ -4,16 +4,21 @@
 
 ## 当前首先试听的版本
 
-用户指定 `test1.mid` 的和声应为 **D 大调 4–5–6–3**。当前按 **G–A–Bm–F♯m** 实现：每小节一个和弦，八小节重复两遍。旋律不变，低音使用根音；上方选择移动较小的紧凑配位。
+用户指定 `test1.mid` 是ヨルシカ《花人局》尾奏，和声为 **D 大调 4–5–6–3 = G–A–Bm–F♯m**。最新反馈明确：前六音起音属于弱起，G 在第 6、7 音起音之间进入；第 12 音起音仍在 G 上，A 在第 12、13 音起音之间进入。换和弦可以发生在旋律延音中，不能吸附到下一音起点或上一音终点。
 
-| 小节 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+据此将首个和声强拍推定为四分音符偏移 3（tick 288），随后每四拍换和弦。首六音的起音均早于此拍点，第六音持续越过该拍点。**音间范围和进行来自用户；范围内的精确拍点、后续四拍间隔与循环是推定，尚未试听验收。** 原 MIDI 的时间、拍号及旋律均保留，修正的音乐起点单独存入 `musical_timing`，不把文件零点当音乐小节起点。
+
 | 和弦 | G | A | Bm | F♯m | G | A | Bm | F♯m |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 四分音符偏移 | 3 | 7 | 11 | 15 | 19 | 23 | 27 | 31 |
+| 起点秒数 | 1.385 | 3.231 | 5.077 | 6.923 | 8.769 | 10.615 | 12.462 | 14.308 |
 
-和声顺序来自用户；「一小节一个和弦」仍是待试听确认的时间假设。状态为 `progression_confirmed_timing_pending`，没有标成全部通过。之前的 A/B 提案保留为历史例子，已从默认试听页移除。
+0–1.385 秒的和声未知，标 `X`，试听只保留旋律；这不等于原曲明确没有伴奏。最后的 F♯m 截到片段结尾 14.769 秒，不能据此认定它是原曲终止和弦。整段状态为 `timing_inferred_from_user_ranges`。旧 A/B、零秒起 4563 均退出当前试听清单；新文件名避免复用旧音频缓存与反馈。
 
-- [当前 4563 音频](data/harmony_v2_review/review/test1_4563.wav)
-- [当前 4563 MIDI](data/harmony_v2_review/block_midis/test1_4563.mid)
+查阅了 [U-FRET 普通页](https://www.ufret.jp/song.php?data=66978) 与 [视频和弦页](https://www.ufret.jp/song.php?data=83899)（2026-11-08）。后者默认选择 Capo 1，页面中的 F♯、G♯、A♯m、Fm 指型需升半音才对应 G、A、Bm、F♯m。末段也包含不同的和弦顺序；该页面不是与本 MIDI 逐音对应的五线谱，因此只作和弦背景参考，不能据它声称本次推定的拍点已被原谱验证。当前以用户指定的 4563 为试听目标。
+
+- [当前弱起 4563 音频](data/harmony_v2_review/review/test1_pickup_4563.wav)
+- [当前弱起 4563 MIDI](data/harmony_v2_review/block_midis/test1_pickup_4563.mid)
 - [完整试听页](data/harmony_v2_review/review/index.html)
 - [可编辑和声配置](examples/harmony/test1_d_major_4563.json)
 
@@ -60,7 +65,7 @@
 
 ## 验证与试听集
 
-全量测试 **51 项通过**：原有 32 项 + 本轮 19 项。
+全量测试 **54 项通过**：原有 32 项 + 和声相关 22 项。
 
 TDD 记录：
 
@@ -72,8 +77,10 @@ TDD 记录：
 | 保持重叠旋律长音 | 原应 3 秒结束的音变成 2 秒，断言失败 | 同音高重叠分配不同 MIDI channel |
 | 区分重复与冲突元数据 | 分类入口尚未实现 | 对照轨道 0 的绝对 tick 和事件值 |
 | 保留用户指定 4563 与来源 | 用户条件装配入口尚未实现 | 配置中的调性、来源、复核状态进入输出计划 |
+| 延音中换和弦与音间范围校验 | `timed_events` 未支持，两个新测试报 `KeyError: events` | G 在 tick 288、A 在 tick 672 进入；第 6、12 音保持完整；拒绝范围外拍点与歧义复调编号 |
+| 试听保留逐段复核状态 | 新测试报 `KeyError: review_status`，原先会合并相同和弦的不同状态 | 记录每段来源/状态/起音范围，状态不同不合并，表格显示状态 |
 
-开发阶段的 RED/GREEN 入口为 `python -m unittest discover -s tests -p test_harmony_plan.py -v`；最终整合验证为 `python -m unittest discover -s tests -v`。没有额外的无关重构。
+开发阶段的 RED/GREEN 入口为 `python -m unittest discover -s tests -p test_harmony_plan.py -v`；最终整合验证为 `python -m unittest discover -s tests -v`。本次 GREEN 为 22 个和声测试通过；无额外重构。配置、资料说明属于非 TDD 修改，通过解析、真实 MIDI 往返与产物审计验证。
 
 当前试听页包含 14 段：用户指定的 test1 4563、已知 C–F–G7–C 终止式（含转位）、4 首留出曲目各 2 个窗口、4 首 POP909 各 1 段。真实曲目另提供同一合成音色的原编配参考。以 `review/cases.json` 为当前试听清单；目录中可能保留早期 A/B 产物。
 
@@ -87,7 +94,7 @@ python -m unittest discover -s tests -v
 python scripts/build_harmony_review.py
 ```
 
-默认命令复建当前项目的试听包，需要已有 DP 标注、原 MIDI、V1.1 参考窗口、POP909 四首 MIDI 与 sidecar，以及哈希匹配的 `test/test1.mid`。可以通过 `--manual-plans` 选择另一份和声配置；配置中的事件时间单位是四分音符，不是秒。
+默认命令复建当前项目的试听包，需要已有 DP 标注、原 MIDI、V1.1 参考窗口、POP909 四首 MIDI 与 sidecar，以及哈希匹配的 `test/test1.mid`。可以通过 `--manual-plans` 选择另一份和声配置；`timed_events` 中 `start_quarter/end_quarter` 是从文件起点计算的四分音符偏移，不是秒。可选的 `onset_between_notes: [6, 7]` 要求和弦起点严格位于第 6、7 音的起音之间。音符从 1 编号，只接受无交叠单音旋律；缺口填为 `X`，每段单独记录来源和复核状态。旧数组 `events` 仍可用于已有人工计划，不能与 `timed_events` 混用。
 
 主要产物位于 `data/harmony_v2_review/`：`annotated_notes/`、`plans/`、`block_midis/`、`review/`、`priority_review.csv`、`summary.json` 和 `manifest.json`。该目录是本地生成物，受 Git 忽略；代码、依赖、示例计划与本文档进入版本管理。
 

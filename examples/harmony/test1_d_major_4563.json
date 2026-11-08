@@ -4,14 +4,48 @@
   "beat_unit": "quarter_note",
   "source": "user_specified_progression",
   "key_context": "D:maj",
-  "review_status": "progression_confirmed_timing_pending",
-  "user_feedback": "和声走向应该是D大调的4563.",
-  "timing_assumption": "每个和弦持续一小节，4/4，共两轮；换和弦位置尚待试听确认。",
+  "review_status": "timing_inferred_from_user_ranges",
+  "user_feedback": "D大调4563。前面六个音属于弱起，第六个音到七个音之间开始是四级和弦，到第十二个音都是四级和弦。这是夜鹿《花人局》的尾奏。补充：五级在13音前些位置，介于12音和13音之间；后面也都是在每段之间切换和弦。",
+  "timing_assumption": "按音符起音之间的范围推定拍点：G在第6音延音中的1.385秒进入，A在第12音延音中的3.231秒进入；之后每4拍依次Bm、F♯m并循环，最后F♯m截到MIDI结尾。首个和声强拍推定为第3个四分音符偏移（tick 288），并非第7音起音。用户确认的是音间范围和段间切换，精确拍点与后续等间隔位置仍需试听。0–1.385秒和声未知，标X；旋律完整保留。",
+  "progression": {
+    "degrees": ["IV", "V", "vi", "iii"],
+    "symbols": ["G:maj", "A:maj", "B:min", "F#:min"],
+    "source": "user_specified_progression",
+    "timing_status": "onset_ranges_user_specified_exact_beats_inferred"
+  },
+  "musical_timing": {
+    "pickup_note_onsets": [1, 6],
+    "first_harmonic_downbeat_quarter": 3,
+    "first_harmonic_downbeat_tick": 288,
+    "harmonic_rhythm_quarters": 4,
+    "last_pickup_note_sustains_across_inferred_downbeat": true,
+    "note_numbering": "non_drum_monophonic_notes_sorted_by_start_tick_pitch_end_tick_one_based",
+    "bar_grid_status": "inferred_from_user_onset_ranges_not_original_midi_bar_grid",
+    "source": "user_note_boundary_correction_and_metrical_inference",
+    "last_chord_truncated_at_excerpt_end": true
+  },
+  "references": [
+    {
+      "url": "https://www.ufret.jp/song.php?data=83899",
+      "title": "花人局（動画プラス） / ヨルシカ — U-FRET",
+      "accessed": "2026-11-08",
+      "scope": "公开吉他和弦参考；页面默认Capo 1指型，末段存在不同进行。未核实与test1的逐音对应，不用它推导MIDI换和弦tick。"
+    }
+  ],
   "candidates": [
     {
-      "id": "test1_4563",
-      "title": "test1 · 用户指定 D 大调 4–5–6–3：G–A–Bm–F♯m",
-      "events": [[0, 4, "G:maj"], [4, 8, "A:maj"], [8, 12, "B:min"], [12, 16, "F#:min"], [16, 20, "G:maj"], [20, 24, "A:maj"], [24, 28, "B:min"], [28, 32, "F#:min"]]
+      "id": "test1_pickup_4563",
+      "title": "test1 · 花人局尾奏：弱起与延音中换和弦 · D大调4563",
+      "timed_events": [
+        {"start_quarter": 3, "end_quarter": 7, "symbol": "G:maj", "onset_between_notes": [6, 7], "source": "user_onset_range_with_metrical_inference", "review_status": "timing_inferred"},
+        {"start_quarter": 7, "end_quarter": 11, "symbol": "A:maj", "onset_between_notes": [12, 13], "source": "user_onset_range_with_metrical_inference", "review_status": "timing_inferred"},
+        {"start_quarter": 11, "end_quarter": 15, "symbol": "B:min", "source": "regular_harmonic_rhythm_inference", "review_status": "timing_inferred"},
+        {"start_quarter": 15, "end_quarter": 19, "symbol": "F#:min", "source": "regular_harmonic_rhythm_inference", "review_status": "timing_inferred"},
+        {"start_quarter": 19, "end_quarter": 23, "symbol": "G:maj", "source": "regular_harmonic_rhythm_inference", "review_status": "timing_inferred"},
+        {"start_quarter": 23, "end_quarter": 27, "symbol": "A:maj", "source": "regular_harmonic_rhythm_inference", "review_status": "timing_inferred"},
+        {"start_quarter": 27, "end_quarter": 31, "symbol": "B:min", "source": "regular_harmonic_rhythm_inference", "review_status": "timing_inferred"},
+        {"start_quarter": 31, "end_quarter": 32, "symbol": "F#:min", "source": "regular_harmonic_rhythm_inference", "review_status": "timing_inferred"}
+      ]
     }
   ]
 }

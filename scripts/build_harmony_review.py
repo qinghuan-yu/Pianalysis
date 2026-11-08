@@ -154,14 +154,60 @@ def make_manual_plan(midi, identifier, events, source="assistant_proposal"):
 def plans_from_config(midi, config):
     plans = []
     for candidate in config["candidates"]:
-        plan = make_manual_plan(midi, candidate["id"], candidate["events"], config.get("source", "assistant_proposal"))
-        for key in ("key_context", "review_status", "user_feedback", "timing_assumption"):
+        source = config.get("source", "assistant_proposal")
+        anchored = "timed_events" in candidate
+        if anchored:
+            if "events" in candidate:
+                raise ValueError("Choose timed_events or legacy events, not both")
+            plan = make_timed_plan(midi, candidate["id"], candidate["timed_events"], source)
+        else:
+            plan = make_manual_plan(midi, candidate["id"], candidate["events"], source)
+        for key in ("key_context", "review_status", "user_feedback", "timing_assumption",
+                    "progression", "musical_timing", "references", "melody_sha256"):
             if key in config:
                 plan[key] = config[key]
-        for label in plan["labels"]:
-            label["review_status"] = plan["review_status"]
+        if not anchored:
+            for label in plan["labels"]:
+                label["review_status"] = plan["review_status"]
         plans.append(plan)
     return plans
+
+
+def make_timed_plan(midi, identifier, events, source):
+    # 编号从 1 开始，只接受无交叠的单音旋律，避免把复调排序冒充旋律音序。
+    notes = sorted((int(midi.time_to_tick(n.start)), n.pitch, int(midi.time_to_tick(n.end)))
+                   for instrument in midi.instruments if not instrument.is_drum for n in instrument.notes)
+    if any("onset_between_notes" in event for event in events) and any(b[0] < a[2] for a, b in zip(notes, notes[1:])):
+        raise ValueError("Note anchors require a monophonic melody")
+    plan = make_manual_plan(midi, identifier, [], source)
+
+    def unknown(start, end):
+        return {**hp.parse_symbol("X"), "start_tick": start, "end_tick": end,
+                "source": "unannotated_gap", "confidence": None, "review_status": "unreviewed",
+                "review_reasons": ["harmony_not_specified"]}
+
+    cursor = 0
+    for event in events:
+        start, end = (round(event[key] * midi.resolution) for key in ("start_quarter", "end_quarter"))
+        onset_range = event.get("onset_between_notes")
+        if onset_range is not None:
+            first, last = onset_range
+            if type(first) is not int or type(last) is not int or not 1 <= first < last <= len(notes):
+                raise ValueError("Invalid one-based note range")
+            # “两音之间”约束起音范围；前一音可能仍在持续，不能吸附到 note-off。
+            if not notes[first - 1][0] < start < notes[last - 1][0]:
+                raise ValueError("Chord must start strictly between note onsets")
+        if start > cursor:
+            plan["labels"].append(unknown(cursor, start))
+        plan["labels"].append({**hp.parse_symbol(event["symbol"]), "start_tick": start, "end_tick": end,
+                               "source": event.get("source", source), "confidence": None,
+                               "review_status": event.get("review_status", "unreviewed"), "review_reasons": [],
+                               "onset_between_notes": onset_range})
+        cursor = end
+    if cursor < plan["duration_ticks"]:
+        plan["labels"].append(unknown(cursor, plan["duration_ticks"]))
+    hp.validate_plan(plan)
+    return plan
 
 
 def add_audition(items, out_dir, identifier, title, midi, plan, reference=None, start=0.0, end=None):
@@ -176,8 +222,11 @@ def add_audition(items, out_dir, identifier, title, midi, plan, reference=None, 
         a, b = midi.tick_to_time(label["start_tick"]), midi.tick_to_time(label["end_tick"])
         if a < end and b > start:
             item = {"start": max(a, start) - start, "end": min(b, end) - start,
-                    "symbol": label["symbol"], "bass_pc": label["bass_pc"], "status": label["status"]}
-            if events and events[-1]["symbol"] == item["symbol"] and abs(events[-1]["end"] - item["start"]) < 1e-6:
+                    "symbol": label["symbol"], "bass_pc": label["bass_pc"], "status": label["status"],
+                    "source": label["source"], "review_status": label.get("review_status", "unreviewed"),
+                    "onset_between_notes": label.get("onset_between_notes")}
+            if (events and all(events[-1][key] == item[key] for key in ("symbol", "source", "review_status", "onset_between_notes"))
+                    and abs(events[-1]["end"] - item["start"]) < 1e-6):
                 events[-1]["end"] = item["end"]
             else:
                 events.append(item)
@@ -192,19 +241,21 @@ def write_review_page(items, out_dir):
     sections = []
     for item in items:
         esc = html.escape
-        rows = "".join(f"<tr><td>{e['start']:.2f}–{e['end']:.2f}s</td><td>{esc(e['symbol'])}</td><td>{e['bass_pc'] if e['bass_pc'] is not None else '—'}</td></tr>" for e in item["events"])
+        rows = "".join(f"<tr><td>{e['start']:.3f}–{e['end']:.3f}s</td><td>{esc(e['symbol'])}</td><td>{e['bass_pc'] if e['bass_pc'] is not None else '—'}</td>"
+                       f"<td>{esc(e.get('review_status', 'unreviewed'))}</td>"
+                       f"<td>{str(e['onset_between_notes'][0]) + '→' + str(e['onset_between_notes'][1]) + ' 起音之间' if e.get('onset_between_notes') else '—'}</td></tr>" for e in item["events"])
         reference = f"<p>原编配参考（同一合成音色）</p><audio controls preload='none' src='{esc(item['reference_audio'])}'></audio>" if item["reference_audio"] else ""
         sections.append(f"""<section data-case="{esc(item['id'])}"><h2>{esc(item['title'])}</h2>
 <p>原曲 {item['start_seconds']:.2f}–{item['end_seconds']:.2f}s · 来源：{esc(item['scope'])} · {esc(item['review_status'])}</p>
 <p>{esc(item['timing_assumption'])}</p>
 <p>旋律 + 柱式和弦</p><audio controls preload="none" src="{esc(item['audio'])}"></audio>{reference}
 <p><a href="{esc(item['midi'])}">完整 MIDI</a> · <a href="{esc(item['plan'])}">和声标注 JSON</a></p>
-<details><summary>查看和弦时间表（相对片段）</summary><table><tr><th>时间</th><th>和弦</th><th>低音音级（C=0）</th></tr>{rows}</table></details>
+<details><summary>查看和弦时间表（相对片段）</summary><table><tr><th>时间</th><th>和弦</th><th>低音音级（C=0）</th><th>复核状态</th><th>旋律音符编号</th></tr>{rows}</table></details>
 <label>判断 <select><option value="pending">待试听</option><option value="accept">这一段可接受</option><option value="harmony_issue">和声不合适</option><option value="timing_issue">换和弦时间不对</option><option value="role_issue">旋律/声部标注不对</option></select></label>
 <textarea placeholder="例如：第 5.2 秒的低音不合适；建议换成……"></textarea></section>""")
     page = """<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Pianalysis 和声试听</title><style>body{max-width:960px;margin:48px auto;padding:0 24px;font:16px/1.7 system-ui;color:#202b33;background:#f5f3ed}h1{font-size:32px}section{padding:24px 0;border-top:1px solid #ccc}audio{width:100%;max-width:650px}table{border-collapse:collapse;width:100%}td,th{padding:6px;text-align:left;border-bottom:1px solid #ddd}textarea{display:block;width:95%;height:72px;margin:12px 0}button,select{padding:8px}a{color:#125d6a}small{color:#5b6266}</style>
-<h1>先听和声，再做织体</h1><p>优先听 test1：已按用户指定的 D 大调 4–5–6–3 更新，先按每小节一个和弦重复两遍。请核对换和弦时机，再对照留出曲目与 POP909。
+<h1>先听和声，再做织体</h1><p>优先听 test1，并查看该段的音符锚点与复核状态。文件起点不代表音乐强拍；推定拍点仍需试听核对，X 区间不补和弦。再对照留出曲目与 POP909。
 这些音频使用固定的柔和合成音色；MIDI 可用钢琴音源播放。请判断和弦、低音与变化时机，不评价音色。</p>
 <p>自动标注尚未人工验收。N 表示无和弦，X 表示未知；未知片段保持安静。库内曲目利用了原伴奏识别和声，不代表仅凭旋律自动配和声的能力。</p>
 <button id="export">下载试听反馈 JSON</button> <small id="state">反馈保存在当前页面的浏览器中；也可下载带回项目。</small>
@@ -322,7 +373,7 @@ def main():
                "user_progression_cases": sum(x["scope"] == "user_specified_progression" for x in auditions),
                "notes_on_scope": ["Automatic and upstream annotations remain unreviewed.",
                                   "Corpus harmony uses original accompaniment, not a melody-only planner.",
-                                  "Test1 uses the user-specified D major 4-5-6-3; one chord per bar is still an audition assumption.",
+                                  "Manual harmony uses explicit timing and review status; MIDI zero is not assumed to be a musical downbeat.",
                                   "MIDI metadata warnings are retained and need review; no silent tempo repair."],
                "piece_reports": records}
     write_json(out_dir / "summary.json", summary)
