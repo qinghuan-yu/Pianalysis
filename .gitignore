@@ -5,6 +5,7 @@ data/
 model_output/
 tokenizer/
 test/
+tests/
 generated*.json
 generated*.mid
 _external_vue_piano/
