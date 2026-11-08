@@ -1,0 +1,13 @@
+{
+  "version": "audition_register_preference_v2",
+  "date": "2026-11-08",
+  "source": "examples/harmony/register_v4_audition.json",
+  "requested_accompaniment_octaves": 1,
+  "scope": "当前 test1 优先展示整个伴奏（含低音）升八度版，旋律不移调；原音区保留供比较。换曲时重新核对音区。",
+  "status": "octave_shift_accepted_for_test1",
+  "preferred_audio_renderer": "FluidSynth 2.6.2 / GeneralUser GS 2.0.3 / bank 0 program 0 Grand Piano",
+  "sampled_piano_preview": "data/piano_review_v4/index.html",
+  "sampled_piano_status": "user_audition_accepted_test1_shifted_version",
+  "sampled_piano_acceptance": "examples/harmony/piano_v4_acceptance.json",
+  "check": "记录音域与旋律交叉，不自动压回音区、不将移调后的试听当作模型新学得能力；后续试听使用采样钢琴并保留共同增益。"
+}

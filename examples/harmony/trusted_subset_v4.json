@@ -1,0 +1,227 @@
+{
+  "version": "symbolically_reviewed_rhythm_subset_v4",
+  "review_date": "2026-11-08",
+  "reviewer": "assistant",
+  "review_status": "assistant_symbolic_reviewed",
+  "human_audition_status": "pending",
+  "scope": "本批67个和声片段，经原MIDI三音、低音、旋律轨与拍点证据复核；沿用原曲级划分，不升级其余40首弱标签。",
+  "beat_policy": "使用beat_midi的四分音符时间及其与原伴奏起音的对应；保留非零相位，不从文件零点假设强拍，不解释上游两个flag的拍号含义。",
+  "target_policy": "和声核对页保留V3规则配位作对照；V4节奏目标另从原PIANO音符投影到拍网格，禁止使用synthetic_teacher_voicing构造节奏目标。",
+  "pieces": [
+    {
+      "song": "001",
+      "split": "train",
+      "indices": [
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32,
+        33,
+        34,
+        35
+      ],
+      "symbols": [
+        "C#:maj",
+        "F#:maj",
+        "B:maj",
+        "C#:maj",
+        "Bb:min",
+        "Eb:min",
+        "B:maj",
+        "C#:maj",
+        "F#:maj",
+        "B:maj",
+        "C#:maj",
+        "Bb:min",
+        "Eb:min",
+        "B:maj",
+        "C#:maj",
+        "F#:maj",
+        "B:maj"
+      ],
+      "review_note": "扩展至首段主歌：根音B/C#/Bb/Eb/F#及对应三音均有直接证据，原伴奏跨拍琶音按和声段核对；不采用后半首重复段扩大独立样本数。",
+      "hashes": {
+        "001.mid": "a93079efb82bdf1e27e75951b7eb454509efb130f0bc0e936257df5c73aabcb0",
+        "chord_midi.txt": "3a2a062ac30441ee98618e6ed83ee9282b741bcf2923b42f5a78bb06058e2bc3",
+        "beat_midi.txt": "5ee19a3728ee682559799e5675dc9d0544beb082d49a9db1ebf34a7fbc23c0da"
+      }
+    },
+    {
+      "song": "002",
+      "split": "train",
+      "indices": [
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32
+      ],
+      "symbols": [
+        "B:maj",
+        "F#:maj",
+        "Ab:min",
+        "F#:maj",
+        "Ab:min",
+        "F#:maj",
+        "C#:min",
+        "B:maj",
+        "F#:maj",
+        "E:maj",
+        "F#:maj",
+        "Ab:min",
+        "Eb:min/b3",
+        "C#:min",
+        "F#:maj",
+        "B:maj",
+        "F#:maj",
+        "Ab:min",
+        "Eb:min",
+        "E:maj",
+        "C#:min",
+        "E:maj"
+      ],
+      "review_note": "加入E大调和弦及Eb:min/b3，后者原低音F#明确支持第一转位；第17段仍因缺三音排除，跨该缺口重置节奏上下文。",
+      "hashes": {
+        "002.mid": "5c6d62a8bbace19b95e01964cf0dfbe0219111478fa4e08c10a505af50a77e62",
+        "chord_midi.txt": "d4cac3e9ff9cd27c3ba235610ef88afb80017f99ee4a1e4c233813f34e46eee2",
+        "beat_midi.txt": "b0910295f7daed94def8a0a8e200b55b13672720acf4bdd2d1993baefec8dafc"
+      }
+    },
+    {
+      "song": "003",
+      "split": "validation",
+      "indices": [
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28
+      ],
+      "symbols": [
+        "G:min",
+        "Eb:maj",
+        "Bb:maj",
+        "F:maj",
+        "G:min",
+        "Eb:maj",
+        "Bb:maj",
+        "F:maj",
+        "G:min",
+        "F:maj",
+        "Eb:maj",
+        "Bb:maj",
+        "F:maj",
+        "G:min",
+        "F:maj",
+        "Eb:maj",
+        "Bb:maj",
+        "F:maj",
+        "G:min"
+      ],
+      "review_note": "扩展首个主歌与副歌到第28段，保留旋律提前音及F和弦前极短尾音；全部仅作验证，不加入训练。",
+      "hashes": {
+        "003.mid": "22e913530ff39f9c3702758f6353b027f1f6197d7c06f79df8a34347762b4c1d",
+        "chord_midi.txt": "c88197abc038355415b8d7cfe05ca22eb1e95326525578d8765ee7d89cd58e93",
+        "beat_midi.txt": "663aa6e05a3fcc25db7b9a7d5a5dbe55e8d4eaecaf48d749191a4ce769e36101"
+      }
+    },
+    {
+      "song": "004",
+      "split": "test",
+      "indices": [
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        25,
+        26
+      ],
+      "symbols": [
+        "B:maj",
+        "Ab:min",
+        "C#:maj",
+        "Ab:min/b3",
+        "Bb:min",
+        "Eb:maj",
+        "Ab:min",
+        "Bb:maj",
+        "F#:maj"
+      ],
+      "review_note": "保留原转位和Eb大三和弦，加入Ab:min、具有D自然音证据的Bb:maj和F#:maj；第24段dim超出本阶段范围留空，不降级三和弦质量。",
+      "hashes": {
+        "004.mid": "bc7c43fc8a11257eac69dc4bc827fd3a2653916674b105e863e179e86afe1490",
+        "chord_midi.txt": "bbe7da3a005663f063a9d878ebf2679a2635bfab0728c436a7637b6c45a15a36",
+        "beat_midi.txt": "8a5be9651eb88bf36e5719f4234d9b6df58935da0eee5724e059f89d94ea436f"
+      }
+    }
+  ],
+  "excluded_examples": [
+    {
+      "song": "001",
+      "indices": [
+        12,
+        18
+      ],
+      "reason": "局部低音仍有B，与F#:maj7/5命名存在解释歧义，不纳入首批可信标签。"
+    },
+    {
+      "song": "002",
+      "indices": [
+        17
+      ],
+      "reason": "伴奏只有F#、C#，没有可确认大三度的A#；不把上游maj名称当作已核验事实。"
+    },
+    {
+      "song": "004",
+      "indices": [
+        13,
+        29
+      ],
+      "reason": "Bb与F的空五度不能独立证明Bb:maj；此阶段排除，不凭调性强补三音。"
+    }
+  ]
+}

@@ -1,0 +1,26 @@
+{
+  "version": "authored_melody_probe_v1",
+  "case_id": "original_g_major_8bars",
+  "title": "窗边小句",
+  "author": "assistant",
+  "purpose": "用户要求现场写一段新旋律，检查冻结 V4 在新输入上的伴奏表现。",
+  "review_status": "assistant_authored_not_user_auditioned",
+  "training_use": false,
+  "tempo_bpm": 100,
+  "ppq": 96,
+  "meter": [4, 4],
+  "key": "G",
+  "accompaniment_semitones": 12,
+  "event_schema": "[音名或null休止, 四分音符拍数, MIDI力度]；依次拼接，音长等于拍数。",
+  "bars": [
+    {"chord": "G:maj", "events": [["G5", 1, 84], ["B5", 0.5, 88], ["A5", 0.5, 80], ["G5", 1, 84], ["D5", 1, 78]]},
+    {"chord": "E:min", "events": [["E5", 1.5, 84], ["G5", 0.5, 82], ["B5", 1, 90], ["A5", 0.5, 82], ["G5", 0.5, 78]]},
+    {"chord": "C:maj", "events": [["E5", 1, 86], ["G5", 0.5, 87], ["A5", 0.5, 84], ["C6", 1, 94], ["B5", 0.5, 86], ["A5", 0.5, 82]]},
+    {"chord": "D:maj", "events": [["F#5", 1, 86], ["A5", 1, 89], ["G5", 0.5, 82], ["F#5", 0.5, 80], ["E5", 0.5, 78], ["D5", 0.5, 76]]},
+    {"chord": "E:min", "events": [["E5", 0.5, 84], ["G5", 0.5, 86], ["B5", 1, 94], [null, 0.5, 0], ["D6", 0.5, 96], ["B5", 1, 88]]},
+    {"chord": "C:maj", "events": [["C6", 1.5, 92], ["B5", 0.5, 84], ["A5", 0.5, 82], ["G5", 0.5, 80], ["E5", 1, 78]]},
+    {"chord": "D:maj", "events": [["F#5", 0.5, 84], ["A5", 0.5, 88], ["D6", 1, 96], ["C6", 0.5, 86], ["B5", 0.5, 84], ["A5", 1, 82]]},
+    {"chord": "G:maj", "events": [["B5", 1, 84], ["A5", 0.5, 80], ["F#5", 0.5, 76], ["G5", 2, 82]]}
+  ],
+  "interpretation_limit": "旋律与和声由助手同时编写，和声是给定条件，不是模型识别结果；属于单个简单新案例，不代表真实歌曲上的广泛泛化能力。"
+}

@@ -38,6 +38,55 @@ experimental model; corpus labels and generated texture have not passed listenin
 review. Protocol, 54 generation comparisons and commands are documented in
 [HARMONY_CONDITIONING_V2.md](HARMONY_CONDITIONING_V2.md).
 
+A narrower local voicing baseline now passes the user's test1 block-chord and
+simple-arpeggio audition. It uses 24 source-pinned, symbolically reviewed POP909
+segments, with song-level splits and explicitly synthetic curriculum targets.
+The model predicts four pitches for the current chord; timing, dynamics and the
+two simple patterns are provided by rules. See [TRUSTED_HARMONY_V3.md](TRUSTED_HARMONY_V3.md)
+for the annotation scope, raw-pitch checks, listening acceptance and commands.
+
+The next experiment freezes that V3 voicing model and learns upper-note rhythm,
+duration and relative velocity from 67 reviewed POP909 segments (39 train,
+19 validation, 9 test; four songs total). On the single held-out test song,
+projected onset F1 improved from 0.382 to 0.715 over fixed arpeggios, while
+duration accuracy and melody responsiveness remain unresolved. The user accepted
+the new test1 rhythm as more suitable. See [LEARNED_RHYTHM_V4.md](LEARNED_RHYTHM_V4.md)
+for the projection losses, checkpoint selection, artifact checks and acceptance.
+
+The next bounded experiment expands to 12 POP909 songs / 195 reviewed segments
+and compares unchanged V4 training with a density-conditioned V5 model that
+predicts all onsets before durations. Expanded data improves duration accuracy;
+V5 provides sparse/medium/dense control but regresses on some onset metrics.
+The user preferred accepted V4 on test1, so neither new candidate is promoted.
+See [RHYTHM_V5_RESULTS.md](RHYTHM_V5_RESULTS.md) for paired comparisons, limitations,
+the recorded listening preference and the experimental generation CLI.
+
+Following that preference, a test1 diagnosis now separates note removal,
+matched-note duration changes and velocity changes, with shared audio gain.
+V5 repeats one onset pattern in six of seven full spans and barely responds to
+same-length rhythm-history changes in this case. No new model was trained or
+promoted; see [NATURALNESS_AUDIT.md](NATURALNESS_AUDIT.md) for the controlled
+auditions, prompt probes and their limits.
+The user found all three primary local edits natural, so no single cause was
+identified. The user then accepted the +1-octave accompaniment on test1;
+`scripts/preview_accompaniment_register.py` preserves melody, timing and velocity.
+Sampled Grand Piano previews are now available in `data/piano_review_v4/index.html`.
+Run `python scripts/setup_piano_renderer.py` once to fetch the pinned portable
+FluidSynth/SoundFont, then `python scripts/render_piano_preview.py --out-dir data/piano_review_new`
+to render both registers with shared gain. The user accepted the sampled-piano
+test1 preview; see `examples/harmony/piano_v4_acceptance.json`. The accepted MIDI
+and historical additive-synth audio remain unchanged.
+
+A newly authored eight-bar G-major melody now has a frozen V4 versus fixed-arpeggio
+comparison at `data/original_melody_v4/index.html`, with both accompaniments raised
+one octave and rendered through the same sampled piano. Reproduce it with
+`python scripts/audition_original_melody_v4.py --out-dir data/original_melody_v4_new`.
+The score is stored in `examples/harmony/original_melody_v4_probe.json`; it is a
+listening probe, excluded from training, with no reference accompaniment or accuracy score.
+The user accepted this new model-accompaniment preview ("这挺完美的"); the exact
+media and checkpoint hashes are in `examples/harmony/original_melody_v4_acceptance.json`.
+No preference over the fixed-arpeggio control was stated.
+
 The old `dataset_final.json` / `checkpoint-6000` flow has been replaced. The project now builds its own local dataset from the `MIDI/` folder and trains on:
 
 ```text
@@ -232,8 +281,10 @@ python -m unittest discover -s tests -v
 python scripts/evaluate_tsd_v2.py --out-dir data/tsd_v2_audit/evaluation_new
 ```
 
-There are 63 regression tests, including 22 harmony annotation/rendering tests
-and nine timed-condition training/inference tests.
+There are 102 regression tests, including 22 harmony annotation/rendering tests,
+nine timed-condition tests, 12 local-voicing/review-gate tests and 11 real-rhythm
+projection/rendering tests, eight density-conditioned decoding tests and eight
+counterfactual-edit/shared-gain tests.
 The harmony dependencies are optional for TSD generation but required for the
 full test suite. Evaluation requires the local V1.1 and V2
 models/datasets and refuses to overwrite an existing summary.

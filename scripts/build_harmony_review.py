@@ -25,7 +25,7 @@ def write_json(path, data):
         stream.write("\n")
 
 
-def write_preview_audio(midi, destination, start=0.0, end=None):
+def synthesize_preview_audio(midi, start=0.0, end=None):
     end = midi.get_end_time() if end is None else end
     if not 0 <= start < end:
         raise ValueError("Invalid audition excerpt")
@@ -53,9 +53,17 @@ def write_preview_audio(midi, destination, start=0.0, end=None):
             envelope = np.minimum(1.0, t / 0.012) * np.minimum(1.0, np.maximum(0, duration - t) / 0.04)
             sound *= envelope * (note.velocity / 127) * (0.6 if melody else 0.4)
             audio[a:b] += sound[:, None] * pan
+    return audio, rate
+
+
+def write_preview_audio(midi, destination, start=0.0, end=None, *, gain=None):
+    audio, rate = synthesize_preview_audio(midi, start, end)
     peak = np.max(np.abs(audio)) if audio.size else 0
-    if peak:
-        audio *= 0.90 / max(1.0, peak)
+    if gain is None:
+        gain = 0.90 / max(1.0, peak) if peak else 1.0
+    elif not np.isfinite(gain) or gain <= 0 or gain * peak > 1.0:
+        raise ValueError("Shared audition gain must be positive, finite and non-clipping")
+    audio *= gain
     destination = Path(destination)
     destination.parent.mkdir(parents=True, exist_ok=True)
     with wave.open(str(destination), "wb") as stream:

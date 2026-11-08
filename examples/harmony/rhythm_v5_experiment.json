@@ -1,0 +1,19 @@
+{
+  "version": "rhythm_v5_preregistered_comparison",
+  "date": "2026-11-08",
+  "scope": "数据扩充与可控节奏的有界实验；所有测试曲目只用于最终报告，不用于选参数或检查点。",
+  "data_config": "examples/harmony/trusted_subset_v5.json",
+  "new_song_split": {"train": ["005", "006", "007", "008", "009", "010"], "validation": ["011"], "test": ["012"]},
+  "preserve_existing_song_split": true,
+  "frozen_voicing": "model_output/local_voicing_v3/final_model",
+  "comparisons": ["accepted_v4", "v4_same_protocol_expanded_data", "v5_onsets_before_durations_with_density_condition"],
+  "seed": 42,
+  "max_epochs": 250,
+  "checkpoint_selection": "validation_NLL_every_10_epochs_patience_8",
+  "density_bins_upper_onsets_per_quarter": {"sparse": "<=2", "medium": ">2 and <=3", "dense": ">3"},
+  "evaluation_profile": "medium_constant_without_reference_density",
+  "density_control_comparison": ["sparse", "medium", "dense"],
+  "duration_decode": "predict all onset masks first; duration candidates end at or before the next same-lane onset",
+  "metrics": ["per_song_onset_precision_recall_F1", "raw_and_rendered_duration_MAE_on_matched_onsets", "onsets_per_quarter", "density_profile_order", "retrigger_cuts", "melody_frame_reversal_NLL"],
+  "promotion": "Do not replace accepted V4 automatically; report regressions and request audition only after artifact checks."
+}
