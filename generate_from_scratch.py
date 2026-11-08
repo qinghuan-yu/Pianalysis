@@ -29,6 +29,7 @@ sys.path.insert(0, str(ROOT / "scripts"))
 
 from closed_loop_v1 import TOKEN, load_midi_notes, piece_to_sample, tokens_to_notes, write_notes_midi  # noqa: E402
 from harmony_v1 import harmony_tokens_for_labels, token_maps  # noqa: E402
+import harmony_conditioning as hc
 from token_protocol_v1 import LEGACY_VERSION, TSD_VERSION, canonical_version, parse_events  # noqa: E402
 
 
@@ -68,6 +69,8 @@ def load_harmony_tokens(path_value: str, tokenizer_version: str = LEGACY_VERSION
     with path.open("r", encoding="utf-8") as handle:
         data = json.load(handle)
 
+    if data.get("version") == "harmony_plan_v2":
+        raise ValueError("Use windowed --melody-midi generation for a timed harmony plan and its MIDI tempo map")
     if isinstance(data.get("harmony_tokens"), list):
         version = data.get("tokenizer_version", data.get("metadata", {}).get("tokenizer_version"))
         if canonical_version(version) != canonical_version(tokenizer_version):
@@ -267,6 +270,7 @@ def generate_windowed(model, piece: dict, args, tokenizer_version: str):
         raise ValueError("Melody MIDI contains no notes")
     duration = max(note["end"] for note in melody)
     source = {**piece, "notes": melody, "duration": duration}
+    hc.validate_model_conditioning(model, hc.VERSION if "timed_harmony" in source else None)
     source_budget = model.config.n_positions - min(args.max_new_tokens, model.config.n_positions // 2)
     intervals = [(i * window_seconds, min(duration, (i + 1) * window_seconds))
                  for i in range(math.ceil(duration / window_seconds))]
@@ -275,7 +279,8 @@ def generate_windowed(model, piece: dict, args, tokenizer_version: str):
     def add_interval(start, end):
         interval = slice_piece(source, start, end)
         tokens = piece_to_sample(interval, quantum_ms, tokenizer_version)["source_tokens"]
-        if len(tokens) + 2 > source_budget:
+        harmony = hc.encode_labels(interval["timed_harmony"], quantum_ms) if "timed_harmony" in interval else []
+        if len(tokens) + len(harmony) + 2 + bool(harmony) > source_budget:
             # 密集旋律按时间继续细分；绝不截掉 source token。
             midpoint = round((start + end) * 500 / quantum_ms) * quantum_ms / 1000
             if midpoint <= start or midpoint >= end:
@@ -283,24 +288,26 @@ def generate_windowed(model, piece: dict, args, tokenizer_version: str):
             add_interval(start, midpoint)
             add_interval(midpoint, end)
         else:
-            planned.append((start, end, tokens))
+            planned.append((start, end, tokens, harmony))
 
     for start, end in intervals:
         add_interval(start, end)
     accompaniment, reports = [], []
-    for start, end, source_tokens in planned:
+    for start, end, source_tokens, harmony in planned:
         if not source_tokens:
             reports.append({"start": start, "end": end, "skipped_silent": True,
                             "source_tokens": [], "generated_target_tokens": [],
                             "generation_report": {**event_diagnostics([], tokenizer_version), "stop_reason": "silent_window"}})
             continue
-        target, report = generate_target(model, [TOKEN["BOS"], *source_tokens, TOKEN["SEP"]], args,
+        prompt = [TOKEN["BOS"], *source_tokens] + ([TOKEN["HARMONY"], *harmony] if harmony else []) + [TOKEN["SEP"]]
+        target, report = generate_target(model, prompt, args,
                                         tokenizer_version, target_duration=end - start)
         for note in tokens_to_notes(target, quantum_ms, tokenizer_version):
             accompaniment.append({**note, "id": len(accompaniment), "role": "accompaniment",
                                   "start": note["start"] + start, "end": note["end"] + start})
         reports.append({"start": start, "end": end, "skipped_silent": False,
-                        "source_tokens": source_tokens, "generated_target_tokens": target, "generation_report": report})
+                        "source_tokens": source_tokens, "harmony_tokens": harmony,
+                        "generated_target_tokens": target, "generation_report": report})
     return melody, accompaniment, reports
 
 
@@ -531,14 +538,25 @@ def main() -> None:
     if window_seconds < 0:
         raise ValueError("window_seconds must not be negative")
     if window_seconds and args.melody_midi:
-        if args.harmony_json:
-            raise ValueError("Windowed MIDI generation currently accepts melody only; use single-window harmony inputs with --window-seconds 0")
         validate_source_metadata({"tokenizer_version": tokenizer_version, "quantum_ms": args.quantum_ms}, tokenizer_version, model_quantum_ms)
         args.window_seconds = window_seconds
         piece = load_midi_notes(Path(args.melody_midi))
+        if args.harmony_json:
+            from harmony_plan import midi_timeline
+            import pretty_midi
+            import hashlib
+            plan = json.loads(Path(args.harmony_json).read_text(encoding="utf-8"))
+            if plan.get("melody_sha256") and plan["melody_sha256"] != hashlib.sha256(Path(args.melody_midi).read_bytes()).hexdigest():
+                raise ValueError("Harmony plan does not match the melody MIDI hash")
+            timeline = midi_timeline(pretty_midi.PrettyMIDI(args.melody_midi))
+            if plan["duration_ticks"] != timeline["duration_ticks"]:
+                raise ValueError("Harmony plan and MIDI duration differ")
+            piece["timed_harmony"] = hc.plan_labels_seconds(plan, timeline)
         melody, raw, windows = generate_windowed(model, piece, args, tokenizer_version)
         cleaned, sanitation = sanitize_accompaniment(melody, raw, args)
         payload = {"model_path": str(model_path), "tokenizer_version": tokenizer_version, "quantum_ms": model_quantum_ms,
+                   "harmony_tokenizer_version": getattr(model.config, "pianalysis_harmony_version", None),
+                   "harmony_source": args.harmony_json or None,
                    "source_info": {"source": args.melody_midi, "duration": max(n["end"] for n in melody)},
                    "generation_params": vars(args), "windows": windows,
                    "melody_note_count": len(melody), "raw_accompaniment_note_count": len(raw),
@@ -555,11 +573,16 @@ def main() -> None:
         raise ValueError("--window-seconds requires --melody-midi")
     source_tokens, harmony_tokens, metadata, source_info = load_source(args, tokenizer_version)
     validate_source_metadata(metadata, tokenizer_version, model_quantum_ms)
+    hc.validate_model_conditioning(model, metadata.get("harmony_tokenizer_version"))
     token_ids = dict(TOKEN)
     token_ids.update(token_maps(tokenizer_version))
     token_ids.update(metadata.get("token_ids", {}))
     token_ids = {key: int(value) for key, value in token_ids.items()}
     quantum_ms = int(metadata.get("quantum_ms", 10))
+    if metadata.get("harmony_tokenizer_version") == hc.VERSION:
+        if not harmony_tokens:
+            raise ValueError("Timed harmony model requires harmony tokens")
+        hc.decode_labels(harmony_tokens, quantum_ms)
 
     prompt = [token_ids["BOS"]] + source_tokens
     if harmony_tokens:

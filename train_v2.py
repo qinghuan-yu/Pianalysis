@@ -35,6 +35,7 @@ from transformers import (
 )
 sys.path.insert(0, str(Path(__file__).resolve().parent / "scripts"))
 from token_protocol_v1 import LEGACY_VERSION, canonical_version, parse_events
+import harmony_conditioning as hc
 
 
 TOKEN_DEFAULTS = {
@@ -119,6 +120,11 @@ def load_dataset(path: Path, max_length: int) -> tuple[dict[str, Any], list[dict
 
     metadata = data.get("metadata", {})
     tokenizer_version = canonical_version(metadata.get("tokenizer_version"))
+    harmony_version = metadata.get("harmony_tokenizer_version")
+    if harmony_version not in (None, hc.VERSION):
+        raise ValueError("Unsupported harmony protocol")
+    if harmony_version == hc.VERSION and tokenizer_version != "pianalysis_tsd_v2":
+        raise ValueError("Timed harmony requires the TSD V2 note protocol")
     raw_samples = data.get("samples", [])
     if not raw_samples:
         raise ValueError(f"No samples found in {path}")
@@ -136,6 +142,8 @@ def load_dataset(path: Path, max_length: int) -> tuple[dict[str, Any], list[dict
     for sample in raw_samples:
         if canonical_version(sample.get("tokenizer_version", tokenizer_version)) != tokenizer_version:
             raise ValueError(f"Sample {sample.get('piece_id')} tokenizer_version differs from dataset metadata")
+        if sample.get("harmony_tokenizer_version") != harmony_version:
+            raise ValueError("Sample harmony protocol differs from dataset metadata")
         seq = sample.get("training_sequence")
         target_start = sample.get("target_start_index")
         if not isinstance(seq, list) or not seq:
@@ -153,6 +161,14 @@ def load_dataset(path: Path, max_length: int) -> tuple[dict[str, Any], list[dict
             continue
 
         if tokenizer_version != LEGACY_VERSION:
+            if harmony_version == hc.VERSION:
+                harmony_tokens = sample.get("harmony_tokens")
+                if not harmony_tokens:
+                    raise ValueError("Missing timed harmony tokens")
+                hc.decode_labels(harmony_tokens, int(metadata.get("quantum_ms", 10)))
+                expected = [1, *sample["source_tokens"], 30, *harmony_tokens, 2, *sample["target_tokens"], 3]
+                if seq != expected or target_start != len(sample["source_tokens"]) + len(harmony_tokens) + 3:
+                    raise ValueError("Invalid timed harmony training_sequence")
             for field in ("source_tokens", "target_tokens"):
                 tokens = sample.get(field)
                 if not isinstance(tokens, list):
@@ -339,6 +355,7 @@ def main() -> None:
         int(dataset_metadata.get("quantum_ms", 10)),
         float(dataset_metadata.get("window_seconds", 8.0)),
     )
+    model.config.pianalysis_harmony_version = dataset_metadata.get("harmony_tokenizer_version")
 
     callbacks = []
     if args.early_stopping_patience > 0:

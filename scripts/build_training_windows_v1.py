@@ -30,6 +30,7 @@ sys.path.insert(0, str(ROOT / "scripts"))
 from closed_loop_v1 import TOKEN, piece_to_sample, tokens_to_notes, write_notes_midi  # noqa: E402
 from harmony_v1 import harmony_tokens_for_labels, slice_harmony_labels, token_maps  # noqa: E402
 from token_protocol_v1 import LEGACY_VERSION, TYPED_VERSION, TSD_VERSION  # noqa: E402
+import harmony_conditioning as hc
 
 
 def slice_piece(piece: dict[str, Any], start: float, end: float) -> dict[str, Any]:
@@ -42,7 +43,7 @@ def slice_piece(piece: dict[str, Any], start: float, end: float) -> dict[str, An
             if adjusted["end"] > adjusted["start"]:
                 sliced_notes.append(adjusted)
 
-    return {
+    result = {
         "piece_id": piece["piece_id"],
         "source_file": piece.get("source_file", ""),
         "duration": end - start,
@@ -55,9 +56,18 @@ def slice_piece(piece: dict[str, Any], start: float, end: float) -> dict[str, An
         if piece.get("harmony")
         else None,
     }
+    labels = piece.get("timed_harmony")
+    if labels is None and piece.get("harmony_plan"):
+        labels = hc.plan_labels_seconds(piece["harmony_plan"], piece["music_annotation"]["timeline"])
+    if labels is not None:
+        result["timed_harmony"] = hc.window_labels(labels, start, end)
+    return result
 
 
 def add_harmony_prompt(sample: dict[str, Any], interval_piece: dict[str, Any]) -> None:
+    if "timed_harmony" in interval_piece:
+        hc.condition_sample(sample, interval_piece["timed_harmony"])
+        return
     harmony = interval_piece.get("harmony") or {}
     labels = harmony.get("labels") or []
     if not labels:
@@ -231,6 +241,7 @@ def main() -> None:
     parser.add_argument("--preview-limit", type=int, default=20)
     parser.add_argument("--tokenizer-version", choices=[LEGACY_VERSION, TYPED_VERSION, TSD_VERSION], default=TSD_VERSION)
     parser.add_argument("--reference-windows", default="", help="Reuse exact sample IDs and intervals from an existing dataset.")
+    parser.add_argument("--allow-unreviewed-harmony", action="store_true", help="Explicitly allow a weak-supervision experiment; does not mark labels accepted.")
     args = parser.parse_args()
 
     annotated_dir = ROOT / args.annotated_dir
@@ -254,6 +265,9 @@ def main() -> None:
     for path in files:
         with path.open("r", encoding="utf-8") as handle:
             piece = json.load(handle)
+        if piece.get("harmony_plan") and not args.allow_unreviewed_harmony:
+            if any(label.get("review_status") != "user_audition_accepted" for label in piece["harmony_plan"]["labels"]):
+                raise ValueError("Unreviewed harmony requires --allow-unreviewed-harmony for an explicit weak-supervision experiment")
         if references is not None:
             selected = [sample for sample in references if sample["source_piece_id"] == piece["piece_id"]]
             samples = build_reference_windows(piece, selected, args.quantum_ms, args.max_length, args.tokenizer_version)
@@ -301,6 +315,13 @@ def main() -> None:
         },
         "samples": all_samples,
     }
+    if any(sample.get("harmony_tokenizer_version") == hc.VERSION for sample in all_samples):
+        if not all(sample.get("harmony_tokenizer_version") == hc.VERSION for sample in all_samples):
+            raise ValueError("Do not mix timed harmony and other prompt formats in one dataset")
+        dataset["metadata"].update({"harmony_tokenizer_version": hc.VERSION,
+                                     "allow_unreviewed_harmony": args.allow_unreviewed_harmony,
+                                     "harmony_evidence_scope": "reference_accompaniment_not_melody_prediction"})
+        dataset["metadata"]["token_ids"].update(hc.token_map())
     with (out_dir / "dataset_windows_v1.json").open("w", encoding="utf-8") as handle:
         json.dump(dataset, handle, ensure_ascii=False, indent=2)
 

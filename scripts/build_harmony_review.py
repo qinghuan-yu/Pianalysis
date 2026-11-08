@@ -163,7 +163,7 @@ def plans_from_config(midi, config):
         else:
             plan = make_manual_plan(midi, candidate["id"], candidate["events"], source)
         for key in ("key_context", "review_status", "user_feedback", "timing_assumption",
-                    "progression", "musical_timing", "references", "melody_sha256"):
+                    "progression", "musical_timing", "references", "melody_sha256", "audition_acceptance"):
             if key in config:
                 plan[key] = config[key]
         if not anchored:
@@ -369,7 +369,8 @@ def main():
                "priority_review_spans": len(review_rows), "all_renders_passed": all(all(r["render_validation"].values()) for r in records),
                "pieces_with_source_midi_warnings": sum(bool(r["source_midi_warnings"]) for r in records),
                "pieces_with_metadata_conflicts": sum(bool(r["source_midi_metadata_audit"].get("conflicts")) for r in records),
-               "human_accepted_cases": 0, "ready_for_texture_training": False,
+               "human_accepted_cases": sum(x["review_status"] == "user_audition_accepted" for x in auditions),
+               "ready_for_texture_training": False,
                "user_progression_cases": sum(x["scope"] == "user_specified_progression" for x in auditions),
                "notes_on_scope": ["Automatic and upstream annotations remain unreviewed.",
                                   "Corpus harmony uses original accompaniment, not a melody-only planner.",

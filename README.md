@@ -30,11 +30,13 @@ V1/V1.1 checkpoints remain supported when supplied with matching inputs. See
 [TOKEN_PROTOCOL_V1_1.md](TOKEN_PROTOCOL_V1_1.md) for the earlier protocol and
 [HARMONY_V1.md](HARMONY_V1.md) for the optional harmony-conditioning workflow.
 
-The next stage is a timed harmony annotation and block-chord audition baseline,
-documented in [HARMONY_V2_BASELINE.md](HARMONY_V2_BASELINE.md). It annotates the
-40 local pieces plus four POP909 samples and exports simple chord columns for
-review. The current test melody uses the user's D-major IV–V–vi–iii progression.
-These labels remain under review and have not been used for new model training.
+The user accepted test1's D-major IV–V–vi–iii block-chord baseline and pickup
+timing. See [HARMONY_V2_BASELINE.md](HARMONY_V2_BASELINE.md). A separate timed
+harmony model is now available: its paired held-out chord-tone ratio rose from
+44.4% to 52.2%, while test1 improved only from 47.9% to 50.1%. It remains an
+experimental model; corpus labels and generated texture have not passed listening
+review. Protocol, 54 generation comparisons and commands are documented in
+[HARMONY_CONDITIONING_V2.md](HARMONY_CONDITIONING_V2.md).
 
 The old `dataset_final.json` / `checkpoint-6000` flow has been replaced. The project now builds its own local dataset from the `MIDI/` folder and trains on:
 
@@ -65,6 +67,8 @@ scripts/tokenizer_v2.py             # Explicit-duration TSD codec
 scripts/duration_constraints.py     # Event grammar and time horizon
 scripts/import_pop909.py            # Named-track import and song identities
 scripts/evaluate_tsd_v2.py          # Paired representation/generation comparison
+scripts/harmony_conditioning.py     # Timed harmony prompt codec and window alignment
+scripts/evaluate_harmony_conditioning.py # Correct/shifted-chord generation comparison
 config.json                         # Reference defaults; CLI flags control runs
 requirements.txt                    # Pinned Python dependencies
 ```
@@ -172,14 +176,16 @@ are split further instead of truncating source tokens. Set `--window-seconds 0`
 for a single pass or `--no-grammar-constraints` for an ablation. Windows are
 independent; phrase continuity is not yet modeled.
 
-When using a model trained with harmony prompts, pass a harmony JSON as well:
+For the experimental timed harmony model, pass the accepted tick-based plan:
 
 ```bash
-python generate_from_scratch.py --model-path model_output/accompaniment_gpt2_harmony/final_model --melody-midi test/test1.mid --harmony-json test/test1_harmony.json --window-seconds 0 --out-midi test/test1_harmony_generated.mid
+python generate_from_scratch.py --model-path model_output/accompaniment_gpt2_harmony_timed_v2/final_model --melody-midi test/test1.mid --harmony-json data/harmony_v2_review/plans/test1_pickup_4563.json --seed 7 --no-fill-empty-bars --out-midi test/test1_harmony_generated.mid --out-json test/test1_harmony_generated.json
 ```
 
-Harmony prompts require an appropriately trained model and currently use
-single-window generation; the TSD model above was not trained on harmony prompts.
+Timed harmony is clipped and rebased for each window using the source MIDI tempo
+map. The model records a separate harmony protocol version and rejects missing or
+mismatched conditions. The default melody-only TSD checkpoint remains unchanged.
+The earlier V1 harmony format still uses the legacy single-window workflow.
 
 Generate accompaniment from a melody source in the training-window dataset:
 
@@ -226,7 +232,8 @@ python -m unittest discover -s tests -v
 python scripts/evaluate_tsd_v2.py --out-dir data/tsd_v2_audit/evaluation_new
 ```
 
-There are 54 regression tests, including 22 harmony annotation/rendering tests.
+There are 63 regression tests, including 22 harmony annotation/rendering tests
+and nine timed-condition training/inference tests.
 The harmony dependencies are optional for TSD generation but required for the
 full test suite. Evaluation requires the local V1.1 and V2
 models/datasets and refuses to overwrite an existing summary.
