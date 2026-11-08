@@ -18,6 +18,7 @@ import json
 import os
 import random
 import shutil
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -32,6 +33,8 @@ from transformers import (
     default_data_collator,
     set_seed,
 )
+sys.path.insert(0, str(Path(__file__).resolve().parent / "scripts"))
+from token_protocol_v1 import LEGACY_VERSION, canonical_version, parse_events
 
 
 TOKEN_DEFAULTS = {
@@ -84,12 +87,12 @@ class ConditionalMusicDataset(Dataset):
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Train a melody-conditioned accompaniment GPT-2 model.")
-    parser.add_argument("--data-file", default="data/training_windows_v1/dataset_windows_v1.json")
-    parser.add_argument("--output-dir", default="model_output/accompaniment_gpt2")
+    parser.add_argument("--data-file", default="data/training_windows_tsd_v2/dataset_windows_v1.json")
+    parser.add_argument("--output-dir", default="model_output/accompaniment_gpt2_tsd_v2")
     parser.add_argument("--max-length", type=int, default=1024)
     parser.add_argument("--batch-size", type=int, default=8)
     parser.add_argument("--eval-batch-size", type=int, default=8)
-    parser.add_argument("--epochs", type=float, default=4.0)
+    parser.add_argument("--epochs", type=float, default=20.0)
     parser.add_argument("--learning-rate", type=float, default=5e-4)
     parser.add_argument("--warmup-steps", type=int, default=200)
     parser.add_argument("--weight-decay", type=float, default=0.01)
@@ -115,6 +118,7 @@ def load_dataset(path: Path, max_length: int) -> tuple[dict[str, Any], list[dict
         data = json.load(handle)
 
     metadata = data.get("metadata", {})
+    tokenizer_version = canonical_version(metadata.get("tokenizer_version"))
     raw_samples = data.get("samples", [])
     if not raw_samples:
         raise ValueError(f"No samples found in {path}")
@@ -130,6 +134,8 @@ def load_dataset(path: Path, max_length: int) -> tuple[dict[str, Any], list[dict
     max_token_id = 0
     max_sample_length = 0
     for sample in raw_samples:
+        if canonical_version(sample.get("tokenizer_version", tokenizer_version)) != tokenizer_version:
+            raise ValueError(f"Sample {sample.get('piece_id')} tokenizer_version differs from dataset metadata")
         seq = sample.get("training_sequence")
         target_start = sample.get("target_start_index")
         if not isinstance(seq, list) or not seq:
@@ -145,6 +151,20 @@ def load_dataset(path: Path, max_length: int) -> tuple[dict[str, Any], list[dict
         if len(seq) > max_length:
             skipped["over_max_length"] += 1
             continue
+
+        if tokenizer_version != LEGACY_VERSION:
+            for field in ("source_tokens", "target_tokens"):
+                tokens = sample.get(field)
+                if not isinstance(tokens, list):
+                    raise ValueError(f"Invalid typed sample {sample.get('piece_id')}: missing {field}")
+                _, report = parse_events(tokens, tokenizer_version)
+                if any(report[key] for key in ("unknown_tokens", "invalid_parameter_events", "incomplete_events")) or report["eos_index"] is not None:
+                    raise ValueError(f"Invalid typed {field} in {sample.get('piece_id')}: {report}")
+            if (target_start < 2 or seq[0] != TOKEN_DEFAULTS["BOS"]
+                    or seq[target_start - 1] != TOKEN_DEFAULTS["SEP"] or seq[-1] != TOKEN_DEFAULTS["EOS"]
+                    or seq[target_start:-1] != sample["target_tokens"]
+                    or seq[1:1 + len(sample["source_tokens"])] != sample["source_tokens"]):
+                raise ValueError(f"Invalid typed training_sequence in {sample.get('piece_id')}")
 
         max_token_id = max(max_token_id, max(int(x) for x in seq))
         max_sample_length = max(max_sample_length, len(seq))
@@ -190,7 +210,10 @@ def split_by_piece(
     return train_samples, eval_samples, sorted(train_pieces), sorted(eval_pieces)
 
 
-def create_model(args: argparse.Namespace, vocab_size: int, token_ids: dict[str, int]) -> GPT2LMHeadModel:
+def create_model(
+    args: argparse.Namespace, vocab_size: int, token_ids: dict[str, int],
+    tokenizer_version: str = LEGACY_VERSION, quantum_ms: int = 10, window_seconds: float = 8.0,
+) -> GPT2LMHeadModel:
     config = GPT2Config(
         vocab_size=vocab_size,
         n_positions=args.max_length,
@@ -204,6 +227,9 @@ def create_model(args: argparse.Namespace, vocab_size: int, token_ids: dict[str,
         bos_token_id=token_ids["BOS"],
         eos_token_id=token_ids["EOS"],
         pad_token_id=token_ids["PAD"],
+        pianalysis_tokenizer_version=canonical_version(tokenizer_version),
+        pianalysis_quantum_ms=quantum_ms,
+        pianalysis_window_seconds=window_seconds,
     )
     model = GPT2LMHeadModel(config)
     params_m = sum(param.numel() for param in model.parameters()) / 1e6
@@ -307,7 +333,12 @@ def main() -> None:
 
     train_dataset = ConditionalMusicDataset(train_samples, args.max_length, token_ids["PAD"])
     eval_dataset = ConditionalMusicDataset(eval_samples, args.max_length, token_ids["PAD"])
-    model = create_model(args, vocab_size, token_ids)
+    model = create_model(
+        args, vocab_size, token_ids,
+        dataset_metadata.get("tokenizer_version", LEGACY_VERSION),
+        int(dataset_metadata.get("quantum_ms", 10)),
+        float(dataset_metadata.get("window_seconds", 8.0)),
+    )
 
     callbacks = []
     if args.early_stopping_patience > 0:

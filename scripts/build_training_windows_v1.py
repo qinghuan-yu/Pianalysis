@@ -6,7 +6,7 @@ Input is expected from scripts/dp_melody_cleaning_v1.py:
   data/dp_cleaned_v1/annotated_notes/*.json
 
 Output samples are short conditional sequences:
-  [BOS] source_melody [SEP] target_accompaniment [EOS]
+  [BOS] source_melody [HARMONY] harmony_plan [SEP] target_accompaniment [EOS]
 
 Each sample includes target_start_index so train_v2.py can mask source loss.
 """
@@ -28,6 +28,8 @@ if DEPS.exists():
 sys.path.insert(0, str(ROOT / "scripts"))
 
 from closed_loop_v1 import TOKEN, piece_to_sample, tokens_to_notes, write_notes_midi  # noqa: E402
+from harmony_v1 import harmony_tokens_for_labels, slice_harmony_labels, token_maps  # noqa: E402
+from token_protocol_v1 import LEGACY_VERSION, TYPED_VERSION, TSD_VERSION  # noqa: E402
 
 
 def slice_piece(piece: dict[str, Any], start: float, end: float) -> dict[str, Any]:
@@ -46,7 +48,38 @@ def slice_piece(piece: dict[str, Any], start: float, end: float) -> dict[str, An
         "duration": end - start,
         "instrument_count": piece.get("instrument_count", 0),
         "notes": sliced_notes,
+        "harmony": {
+            **piece.get("harmony", {}),
+            "labels": slice_harmony_labels(piece.get("harmony", {}).get("labels", []), start, end),
+        }
+        if piece.get("harmony")
+        else None,
     }
+
+
+def add_harmony_prompt(sample: dict[str, Any], interval_piece: dict[str, Any]) -> None:
+    harmony = interval_piece.get("harmony") or {}
+    labels = harmony.get("labels") or []
+    if not labels:
+        sample["harmony_tokens"] = []
+        sample["harmony_labels"] = []
+        return
+
+    harmony_tokens = harmony_tokens_for_labels(labels, sample.get("tokenizer_version", LEGACY_VERSION))
+    sample["harmony_tokens"] = harmony_tokens
+    sample["harmony_labels"] = labels
+    sample["training_sequence"] = (
+        [TOKEN["BOS"]]
+        + sample["source_tokens"]
+        + [TOKEN["HARMONY"]]
+        + harmony_tokens
+        + [TOKEN["SEP"]]
+        + sample["target_tokens"]
+        + [TOKEN["EOS"]]
+    )
+    sample["target_start_index"] = len(sample["source_tokens"]) + len(harmony_tokens) + 3
+    sample["harmony_length"] = len(harmony_tokens)
+    sample["total_length"] = len(sample["training_sequence"])
 
 
 def make_window_sample(
@@ -57,6 +90,7 @@ def make_window_sample(
     max_length: int,
     min_duration: float,
     depth: int = 0,
+    tokenizer_version: str = LEGACY_VERSION,
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     """Return accepted samples and rejected diagnostics for this interval."""
     interval_piece = slice_piece(piece, start, end)
@@ -70,7 +104,8 @@ def make_window_sample(
             }
         ]
 
-    sample = piece_to_sample(interval_piece, quantum_ms)
+    sample = piece_to_sample(interval_piece, quantum_ms, tokenizer_version)
+    add_harmony_prompt(sample, interval_piece)
     melody_count = sample["melody_note_count"]
     accompaniment_count = sample["accompaniment_note_count"]
 
@@ -93,7 +128,7 @@ def make_window_sample(
                 "start_time": start,
                 "end_time": end,
                 "window_duration": end - start,
-                "source_piece_id": piece["piece_id"],
+                "source_piece_id": piece.get("source_piece_id", piece["piece_id"]),
             }
         )
         return [sample], []
@@ -114,10 +149,10 @@ def make_window_sample(
 
     mid = start + duration / 2.0
     left_samples, left_rejects = make_window_sample(
-        piece, start, mid, quantum_ms, max_length, min_duration, depth + 1
+        piece, start, mid, quantum_ms, max_length, min_duration, depth + 1, tokenizer_version
     )
     right_samples, right_rejects = make_window_sample(
-        piece, mid, end, quantum_ms, max_length, min_duration, depth + 1
+        piece, mid, end, quantum_ms, max_length, min_duration, depth + 1, tokenizer_version
     )
     return left_samples + right_samples, left_rejects + right_rejects
 
@@ -129,6 +164,7 @@ def build_windows_for_piece(
     overlap_seconds: float,
     max_length: int,
     min_duration: float,
+    tokenizer_version: str = LEGACY_VERSION,
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     duration = float(piece.get("duration", 0.0))
     if duration <= 0:
@@ -143,7 +179,7 @@ def build_windows_for_piece(
     start = 0.0
     while start < duration:
         end = min(duration, start + window_seconds)
-        accepted, rejected = make_window_sample(piece, start, end, quantum_ms, max_length, min_duration)
+        accepted, rejected = make_window_sample(piece, start, end, quantum_ms, max_length, min_duration, tokenizer_version=tokenizer_version)
         samples.extend(accepted)
         rejects.extend(rejected)
         if end >= duration:
@@ -156,23 +192,45 @@ def build_windows_for_piece(
     return samples, rejects
 
 
+def build_reference_windows(piece, references, quantum_ms, max_length, tokenizer_version):
+    samples = []
+    for reference in references:
+        start, end = float(reference["start_time"]), float(reference["end_time"])
+        if not 0 <= start < end <= float(piece["duration"]) + 1e-6:
+            raise ValueError(f"Invalid reference interval in {reference['piece_id']}")
+        interval = slice_piece(piece, start, end)
+        sample = piece_to_sample(interval, quantum_ms, tokenizer_version)
+        add_harmony_prompt(sample, interval)
+        if sample["total_length"] > max_length:
+            raise ValueError(f"Reference window {reference['piece_id']} exceeds max_length after re-encoding")
+        sample.update({key: reference[key] for key in ("piece_id", "source_piece_id", "slice_id", "start_time", "end_time")})
+        sample["window_duration"] = end - start
+        samples.append(sample)
+    return samples
+
+
 def write_preview_midis(samples: list[dict[str, Any]], out_dir: Path, quantum_ms: int, limit: int) -> None:
     preview_dir = out_dir / "preview_midi"
     for sample in samples[:limit]:
-        notes = tokens_to_notes(sample["source_tokens"] + sample["target_tokens"], quantum_ms)
+        version = sample.get("tokenizer_version", LEGACY_VERSION)
+        # 两个声部各自从零计时，不能拼接后共用同一个时间游标。
+        notes = tokens_to_notes(sample["source_tokens"], quantum_ms, version)
+        notes += tokens_to_notes(sample["target_tokens"], quantum_ms, version)
         write_notes_midi(notes, preview_dir / f"{sample['piece_id']}.mid")
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Build short training windows from annotated note JSON.")
     parser.add_argument("--annotated-dir", default="data/dp_cleaned_v1/annotated_notes")
-    parser.add_argument("--out-dir", default="data/training_windows_v1")
+    parser.add_argument("--out-dir", default="data/training_windows_tsd_v2")
     parser.add_argument("--quantum-ms", type=int, default=10)
     parser.add_argument("--window-seconds", type=float, default=8.0)
     parser.add_argument("--overlap-seconds", type=float, default=0.0)
     parser.add_argument("--max-length", type=int, default=1024)
     parser.add_argument("--min-duration", type=float, default=1.0)
     parser.add_argument("--preview-limit", type=int, default=20)
+    parser.add_argument("--tokenizer-version", choices=[LEGACY_VERSION, TYPED_VERSION, TSD_VERSION], default=TSD_VERSION)
+    parser.add_argument("--reference-windows", default="", help="Reuse exact sample IDs and intervals from an existing dataset.")
     args = parser.parse_args()
 
     annotated_dir = ROOT / args.annotated_dir
@@ -189,18 +247,22 @@ def main() -> None:
     all_samples: list[dict[str, Any]] = []
     all_rejects: list[dict[str, Any]] = []
     piece_reports: list[dict[str, Any]] = []
+    references = None
+    if args.reference_windows:
+        references = json.loads(Path(args.reference_windows).read_text(encoding="utf-8"))["samples"]
 
     for path in files:
         with path.open("r", encoding="utf-8") as handle:
             piece = json.load(handle)
-        samples, rejects = build_windows_for_piece(
-            piece,
-            args.quantum_ms,
-            args.window_seconds,
-            args.overlap_seconds,
-            args.max_length,
-            args.min_duration,
-        )
+        if references is not None:
+            selected = [sample for sample in references if sample["source_piece_id"] == piece["piece_id"]]
+            samples = build_reference_windows(piece, selected, args.quantum_ms, args.max_length, args.tokenizer_version)
+            rejects = []
+        else:
+            samples, rejects = build_windows_for_piece(
+                piece, args.quantum_ms, args.window_seconds, args.overlap_seconds,
+                args.max_length, args.min_duration, args.tokenizer_version,
+            )
         all_samples.extend(samples)
         all_rejects.extend(rejects)
         piece_reports.append(
@@ -217,11 +279,16 @@ def main() -> None:
         )
         print(f"OK {piece['piece_id']}: accepted={len(samples)} rejected={len(rejects)}")
 
+    if references is not None and {sample["piece_id"] for sample in all_samples} != {sample["piece_id"] for sample in references}:
+        raise ValueError("Not all reference windows were matched to annotated pieces")
     dataset = {
         "metadata": {
             "source": str(annotated_dir),
-            "tokenizer_version": "pianalysis_numeric_v1",
-            "format": "[BOS] source_melody [SEP] target_accompaniment [EOS]",
+            "reference_windows": args.reference_windows or None,
+            "tokenizer_version": args.tokenizer_version,
+            "format": "[BOS] source_melody [HARMONY] harmony_plan [SEP] target_accompaniment [EOS]"
+            if any(sample.get("harmony_tokens") for sample in all_samples)
+            else "[BOS] source_melody [SEP] target_accompaniment [EOS]",
             "quantum_ms": args.quantum_ms,
             "window_seconds": args.window_seconds,
             "overlap_seconds": args.overlap_seconds,
@@ -229,7 +296,7 @@ def main() -> None:
             "min_duration": args.min_duration,
             "sample_count": len(all_samples),
             "rejected_count": len(all_rejects),
-            "token_ids": TOKEN,
+            "token_ids": token_maps(args.tokenizer_version),
             "loss_rule": "labels before target_start_index and padding positions must be -100",
         },
         "samples": all_samples,

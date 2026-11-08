@@ -1,5 +1,19 @@
 # Pianalysis Tokenizer V2
 
+## Implemented stage: TSD durations
+
+`scripts/tokenizer_v2.py` now implements `pianalysis_tsd_v2`: role-specific
+note events followed by Pitch, Velocity, and Duration fields, with relative
+TIME events on the existing 10 ms grid. Grammar-constrained generation and
+windowed melody inference are integrated. See [UPSTREAM_ADOPTION.md](UPSTREAM_ADOPTION.md)
+for the implementation, upstream references, and commands, and
+[TSD_V2_RESULTS.md](TSD_V2_RESULTS.md) for measured results.
+
+The sections below describe the planned REMI-style extension with beat/bar
+anchors. This extension is not yet implemented. It requires reliable tempo,
+time-signature, and beat alignment; the current TSD stage intentionally retains
+the original time grid to isolate the effect of explicit note durations.
+
 Tokenizer V1 uses low-level `NOTE_ON`, `NOTE_OFF`, and relative `TIME` events.
 It is reversible, but it asks the language model to learn note closure,
 duration, bar placement, and polyphonic legality from raw event syntax. That is
@@ -40,11 +54,15 @@ This intentionally favors stable musical rhythm over microscopic timing.
 Note tokens:
 
 ```text
-MEL_NOTE_<pitch>_<duration>_<velocity_bucket>
-ACC_NOTE_<pitch>_<duration>_<velocity_bucket>
+MEL PITCH_<pitch> VELOCITY_<bucket> DURATION_<duration>
+ACC PITCH_<pitch> VELOCITY_<bucket> DURATION_<duration>
 ```
 
-Recommended pitch range:
+Each field has a disjoint vocabulary. Do not enumerate all pitch × duration ×
+velocity combinations as one token. Compound Word pooling and independent
+output heads are a separate model extension, not this flat-token baseline.
+
+Recommended pitch range for the planned beat-based representation:
 
 ```text
 21..108
@@ -80,9 +98,9 @@ The conditional training sequence should remain source-target split:
 
 ```text
 BOS
-BAR POS_0 MEL_NOTE_64_2_mf POS_4 MEL_NOTE_67_4_mf ...
+BAR POS_0 MEL PITCH_64 VELOCITY_mf DURATION_2 POS_4 MEL PITCH_67 VELOCITY_mf DURATION_4 ...
 SEP
-BAR POS_0 ACC_NOTE_48_8_mp ACC_NOTE_55_8_mp POS_8 ACC_NOTE_52_8_mp ...
+BAR POS_0 ACC PITCH_48 VELOCITY_mp DURATION_8 ACC PITCH_55 VELOCITY_mp DURATION_8 ...
 EOS
 ```
 
@@ -108,7 +126,7 @@ Only accompaniment target tokens should contribute to training loss.
 ## Decoding Algorithm
 
 1. Maintain the current bar and current position.
-2. Decode each `*_NOTE_<pitch>_<duration>_<velocity>` as a complete note.
+2. Decode each role/Pitch/Velocity/Duration group as a complete note.
 3. Convert `(bar, pos, duration)` back to seconds or ticks.
 4. Apply inference legality filters:
    - pitch range
@@ -130,7 +148,7 @@ The model must remember to close the note later.
 V2:
 
 ```text
-POS_4 ACC_NOTE_60_8_mf
+POS_4 ACC PITCH_60 VELOCITY_mf DURATION_8
 ```
 
 The duration is part of the event, so the model cannot create a hanging note by
@@ -139,8 +157,8 @@ forgetting the matching `NOTE_OFF`.
 ## Migration Plan
 
 1. Keep V1 generation working for existing checkpoints.
-2. Add `scripts/tokenizer_v2.py` with pure encode/decode functions.
-3. Add a V2 dataset builder that emits `source_tokens`, `target_tokens`,
+2. Extend the versioned tokenizer with beat-aware encode/decode functions.
+3. Extend the dataset builder to emit beat-aware `source_tokens`, `target_tokens`,
    `training_sequence`, and `target_start_index`.
 4. Train a fresh model because V1 checkpoints are not vocabulary-compatible.
 5. Compare V1 and V2 with the same melody MIDI prompts and the same legality

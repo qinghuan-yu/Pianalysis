@@ -29,19 +29,9 @@ if DEPS.exists():
     sys.path.insert(0, str(DEPS))
 
 import pretty_midi  # noqa: E402
-
-
-TOKEN = {
-    "PAD": 0,
-    "BOS": 1,
-    "SEP": 2,
-    "EOS": 3,
-    "TIME": 4,
-    "NOTE_ON_MELODY": 10,
-    "NOTE_OFF_MELODY": 11,
-    "NOTE_ON_ACCOMP": 20,
-    "NOTE_OFF_ACCOMP": 21,
-}
+from token_protocol_v1 import (  # noqa: E402
+    TOKEN, LEGACY_VERSION, TSD_VERSION, canonical_version, decode_to_legacy_events, encode_legacy_events,
+)
 
 
 def quantize_time(seconds: float, quantum_ms: int) -> int:
@@ -82,12 +72,20 @@ def load_midi_notes(midi_path: Path) -> dict[str, Any]:
 
     notes.sort(key=lambda item: (item["start"], item["pitch"], item["end"]))
 
+    tempo_times, tempi = midi.get_tempo_changes()
     return {
         "piece_id": midi_path.stem,
         "source_file": str(midi_path.as_posix()),
         "duration": float(midi.get_end_time()),
         "instrument_count": len(midi.instruments),
         "notes": notes,
+        "midi_timing": {
+            "resolution": int(midi.resolution),
+            "tempo_changes": [{"time": float(time), "bpm": float(bpm)} for time, bpm in zip(tempo_times, tempi)],
+            "time_signatures": [{"time": float(event.time), "numerator": event.numerator, "denominator": event.denominator}
+                                for event in midi.time_signature_changes],
+            "key_signatures": [{"time": float(event.time), "key_number": event.key_number} for event in midi.key_signature_changes],
+        },
     }
 
 
@@ -157,7 +155,7 @@ def make_events(notes: list[dict[str, Any]], role: str, quantum_ms: int) -> list
     return events
 
 
-def events_to_tokens(events: list[dict[str, Any]], quantum_ms: int) -> list[int]:
+def events_to_tokens(events: list[dict[str, Any]], quantum_ms: int, tokenizer_version: str = LEGACY_VERSION) -> list[int]:
     del quantum_ms
     tokens: list[int] = []
     current_tick = 0
@@ -179,13 +177,19 @@ def events_to_tokens(events: list[dict[str, Any]], quantum_ms: int) -> list[int]
             else:
                 tokens.extend([TOKEN["NOTE_OFF_ACCOMP"], event["pitch"]])
 
-    return tokens
+    return encode_legacy_events(tokens, tokenizer_version)
 
 
-def piece_to_sample(piece: dict[str, Any], quantum_ms: int) -> dict[str, Any]:
+def piece_to_sample(piece: dict[str, Any], quantum_ms: int, tokenizer_version: str = LEGACY_VERSION) -> dict[str, Any]:
     notes = piece["notes"]
-    source = events_to_tokens(make_events(notes, "melody", quantum_ms), quantum_ms)
-    target = events_to_tokens(make_events(notes, "accompaniment", quantum_ms), quantum_ms)
+    tokenizer_version = canonical_version(tokenizer_version)
+    if tokenizer_version == TSD_VERSION:
+        from tokenizer_v2 import encode_notes
+        source = encode_notes(notes, "melody", quantum_ms)
+        target = encode_notes(notes, "accompaniment", quantum_ms)
+    else:
+        source = events_to_tokens(make_events(notes, "melody", quantum_ms), quantum_ms, tokenizer_version)
+        target = events_to_tokens(make_events(notes, "accompaniment", quantum_ms), quantum_ms, tokenizer_version)
     training_sequence = [TOKEN["BOS"]] + source + [TOKEN["SEP"]] + target + [TOKEN["EOS"]]
     target_start_index = len(source) + 2
 
@@ -194,6 +198,7 @@ def piece_to_sample(piece: dict[str, Any], quantum_ms: int) -> dict[str, Any]:
         "source_file": piece["source_file"],
         "duration": piece["duration"],
         "quantum_ms": quantum_ms,
+        "tokenizer_version": tokenizer_version,
         "source_tokens": source,
         "target_tokens": target,
         "training_sequence": training_sequence,
@@ -207,7 +212,11 @@ def piece_to_sample(piece: dict[str, Any], quantum_ms: int) -> dict[str, Any]:
     }
 
 
-def tokens_to_notes(tokens: list[int], quantum_ms: int) -> list[dict[str, Any]]:
+def tokens_to_notes(tokens: list[int], quantum_ms: int, tokenizer_version: str = LEGACY_VERSION) -> list[dict[str, Any]]:
+    if canonical_version(tokenizer_version) == TSD_VERSION:
+        from tokenizer_v2 import decode_notes
+        return decode_notes(tokens, quantum_ms)
+    tokens = decode_to_legacy_events(tokens, tokenizer_version)
     notes: list[dict[str, Any]] = []
     active: dict[tuple[str, int], list[dict[str, Any]]] = {}
     current_tick = 0
