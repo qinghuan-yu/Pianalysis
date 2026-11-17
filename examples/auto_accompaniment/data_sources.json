@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "root": "data/auto_accompaniment",
+  "sources": [
+    {
+      "id": "pop909_cl",
+      "repository": "https://github.com/AndyWeasley2004/POP909-CL-Dataset",
+      "commit": "0e06063995ef237585c2ad48336cfae1b960beae",
+      "url": "https://raw.githubusercontent.com/AndyWeasley2004/POP909-CL-Dataset/0e06063995ef237585c2ad48336cfae1b960beae/POP909_processed.zip",
+      "filename": "POP909_processed.zip",
+      "git_blob_sha1": "0d0e326f3b8a1161a632b42201620f4d1753ee1e",
+      "sha256": "d18882cb5f4a633fe607bcb69c76c47021032d74b9c3b143aa3d34b85269b4a7",
+      "license": {
+        "repository": "MIT",
+        "scope": "Repository LICENSE uses software wording; no independent underlying composition/arrangement clearance established.",
+        "url": "https://github.com/AndyWeasley2004/POP909-CL-Dataset/blob/0e06063995ef237585c2ad48336cfae1b960beae/LICENSE"
+      },
+      "expected_midi_files": 906
+    },
+    {
+      "id": "hooktheory",
+      "repository": "https://github.com/chrisdonahue/sheetsage-data",
+      "commit": "06113c04b109a2f27517b0399ff47550099f2466",
+      "url": "https://raw.githubusercontent.com/chrisdonahue/sheetsage-data/06113c04b109a2f27517b0399ff47550099f2466/hooktheory/Hooktheory.json.gz",
+      "filename": "Hooktheory.json.gz",
+      "sha256": "917b7cd58f5f4e07d6c36acf7bfad958c99ee05472dab3555399141094698e0c",
+      "license": {
+        "data": "CC BY-NC-SA 3.0",
+        "code": "MIT",
+        "url": "https://github.com/chrisdonahue/sheetsage/blob/bbdd7b7b6a5fb845828f82790acdceb03a197779/README.md#hooktheory-data-release",
+        "evidence_commit": "bbdd7b7b6a5fb845828f82790acdceb03a197779",
+        "evidence_readme_git_blob_sha1": "bffff8ac5fe81bb9e5f029edd62e061325103349",
+        "scope": "Noncommercial research dataset; source code MIT is not the data license."
+      }
+    }
+  ],
+  "legacy_pop909_splits": {
+    "train": [
+      "001",
+      "002",
+      "005",
+      "006",
+      "007",
+      "008",
+      "009",
+      "010"
+    ],
+    "validation": [
+      "003",
+      "011"
+    ],
+    "test": [
+      "004",
+      "012"
+    ]
+  },
+  "seed": 20261116
+}

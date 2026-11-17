@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "quoted_on": "2026-11-16",
+  "currency": "USD",
+  "cny_per_usd_budget_assumption": 7.2,
+  "exchange_rate_is_live": false,
+  "price_source": "https://www.runpod.io/pricing",
+  "price_source_updated_on": "2026-11-12",
+  "price_scope": "Public Pods pricing page default displayed cards; actual region, availability and checkout price must be checked before rental. Not Serverless pricing.",
+  "gpu_options": {
+    "A40_48GB": {"usd_per_gpu_hour": 0.59},
+    "L40S_48GB": {"usd_per_gpu_hour": 1.09},
+    "A100_PCIe_80GB": {"usd_per_gpu_hour": 2.09}
+  },
+  "recommended_gpu": "L40S_48GB",
+  "storage": {
+    "source": "https://docs.runpod.io/pods/storage/types",
+    "network_volume_gb": 50,
+    "network_usd_per_gb_month": 0.07,
+    "retention_months": 1,
+    "container_disk_gb": 30,
+    "container_usd_per_gb_month": 0.1,
+    "hours_per_billing_month_assumption": 730
+  },
+  "contingency_fraction": 0.25,
+  "phases": [
+    {"id": "cloud_profile", "gpu_hours_cap": 2, "purpose": "Verify the exact cloud GPU, profile both models, exercise checkpoint and resume"},
+    {"id": "first_pair", "gpu_hours_cap": 22, "purpose": "One harmony fine-tune and one accompaniment fine-tune, validation and short generations"},
+    {"id": "selection", "gpu_hours_cap": 24, "purpose": "Bounded development-set learning-rate and conditioning experiments"},
+    {"id": "replication", "gpu_hours_cap": 72, "purpose": "Repeat selected settings across seeds plus matched initialization/conditioning ablations"},
+    {"id": "evaluation", "gpu_hours_cap": 8, "purpose": "Frozen held-out generation and component comparisons"}
+  ],
+  "first_pass_phase_ids": ["cloud_profile", "first_pair"],
+  "caps_are_allocations_not_runtime_predictions": true,
+  "cloud_throughput_measured": false,
+  "exclusions": ["Human annotation labor", "Future style-adaptation campaign", "Additional large-model pretraining", "Provider-specific taxes and extraordinary transfer charges beyond the contingency"],
+  "operating_rule": "These are proposed spending allocations, not purchase authorization. Run one GPU, preserve resumable checkpoints, stop jobs at their wall-time caps, and terminate the paid instance after exporting results. Early stopping may reduce spend; a capped run is not evidence of convergence."
+}

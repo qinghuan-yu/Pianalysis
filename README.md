@@ -1,50 +1,50 @@
 # Pianalysis
 
-输入旋律 MIDI 与带时间的和声计划，生成钢琴伴奏并保留原旋律。项目目前聚焦简单三和弦的配位、节奏、时值和力度；和声计划由外部提供，尚未实现可靠的自动配和声或完整风格化编曲。
+两阶段钢琴伴奏训练：**旋律 → 自动和声 → 旋律与和声条件下的伴奏织体**。和声基于 [ReaLchords](https://github.com/lukewys/realchords-pytorch)，织体基于 [Compose & Embellish](https://github.com/slSeanWU/Compose_and_Embellish)。
 
-## 当前状态
+本仓库仅保存当前训练代码、配置和 Colab 入口。模型、原始数据、试听产物、测试与历史材料保存在项目私有备份中。
 
-- **V4 是已验收基准**：固定 V3 配位，学习真实伴奏的节奏、时值和相对力度。《花人局》尾奏与新写的《窗边小句》均获得用户正面听审。
-- **V5 是可控节奏实验**：扩充到 12 首、195 个和声片段，加入疏密条件，先预测全部起音再预测时值。它改善了部分时值指标，但用户在尾奏对照中仍偏好 V4，尚未替代基准。
-- 试听使用采样钢琴；伴奏升八度是显式后处理，不计为模型学到的能力。两例听审也不等于广泛泛化验证。
+## 当前结果
 
-## 文档
+| 阶段 | 已验收 checkpoint | 说明 |
+| --- | --- | --- |
+| 自动和声 | 2488 步 | 仅输入旋律预测和弦 |
+| 伴奏织体 | 1900 步 | 首轮在 2700 步早停，选取验证最优模型 |
 
-| 文档 | 内容 |
-| --- | --- |
-| [迭代记录](ITERATION_HISTORY.md) | 从 MIDI 闭环、协议修复到和声条件、V3/V4/V5 的取舍和实测结论 |
-| [V5 实现](V5_IMPLEMENTATION.md) | 数据、事件表示、训练、解码、对照指标和运行方法 |
+五段初始试听与后续 24 段新旋律串联试听均获用户整体认可。后者每段八小节、三个固定种子，共 72 次织体生成；未提供逐曲、逐种子评分。当前范围为已知小节起点的 4/4 拍，不代表自动弱起识别、长曲结构或特定演奏家风格已经解决。
 
-旧阶段说明已合并；完整旧文档可从 Git 提交 `7358001` 查阅。
+## 准备与训练
 
-## 环境与运行
+使用 Python 3.11 和 NVIDIA GPU。CUDA 12.1 环境示例：
 
-使用 Python 3.11，在项目根目录安装依赖：
-
-```powershell
-python -m pip install -r requirements.txt -r requirements-harmony.txt
+```bash
+python -m pip install torch==2.5.1 --index-url https://download.pytorch.org/whl/cu121
+python -m pip install -r requirements-auto-accompaniment.txt
+python scripts/fetch_auto_accompaniment_data.py
+python scripts/prepare_auto_accompaniment_data.py
+python scripts/fetch_auto_models.py
+python scripts/verify_auto_training_data.py
+python scripts/run_auto_training.py harmony --output-dir model_output/harmony_run1 --max-hours 2
+python scripts/run_auto_training.py texture --output-dir model_output/texture_run1 --max-hours 2
 ```
 
-仓库提供代码、标注配置和听审记录。**源 MIDI、模型权重、生成数据与音色库不随 Git 分发**，新克隆不能直接生成音频；需先准备 [V5 实现](V5_IMPLEMENTATION.md) 所列本地资源。旧版 `train_v2.py` 使用 Transformers Trainer，运行该旧流程时还需安装 `accelerate`。
+配置见 [harmony_train.json](examples/auto_accompaniment/harmony_train.json) 和 [texture_train.json](examples/auto_accompaniment/texture_train.json)。续训使用 `--resume <同一运行目录>/last.pt`，保持数据、配置与训练协议一致；运行入口会核验数据并设置进程时长上限。
 
-已有本地 V3/V4 权重及钢琴渲染器时，复现新旋律对照：
+## Colab Pro
 
-```powershell
-python scripts/setup_piano_renderer.py
-python scripts/audition_original_melody_v4.py --out-dir data/original_melody_preview
+先制作私有训练包，再打开 [Pianalysis_Train.ipynb](colab/Pianalysis_Train.ipynb)：
+
+```bash
+python scripts/estimate_auto_training_cost.py
+python scripts/package_auto_training.py
 ```
 
-输出目录含模型伴奏、固定分解、单独旋律和 `index.html`。输出目录必须是新目录；新渲染不会自动继承旧音频的听审结论。钢琴准备脚本下载经固定校验值验证的 FluidSynth 和 SoundFont 到本地，不做系统安装。
+将 `data/auto_accompaniment/` 下生成的所有 `.partNNN` 分片和对应 `.manifest.json` 上传至 `MyDrive/Pianalysis/inputs/`。Notebook 挂载 Drive 后选择训练阶段与小时上限；日志和 checkpoint 保存在 `MyDrive/Pianalysis/runs/`。保存使用完成标记与 SHA256 校验，保留最近两代 `last` 和一代 `best`。训练结束后需主动断开并删除 Colab 运行时。
 
-## 代码入口
+已验收模型另存私有 Drive 备份，保留完整训练状态及代码快照，不随 Git 分发。恢复既有 Colab 运行时保留原 `runs/` 布局；直接使用备份 checkpoint 本地续训时，使用其保存的有效训练配置，不能把基础配置当作该次云端运行的最终配置。
 
-| 路径 | 职责 |
-| --- | --- |
-| [`scripts/build_trusted_harmony.py`](scripts/build_trusted_harmony.py) | 校验源文件与和声标注，构建训练片段 |
-| [`scripts/local_voicing.py`](scripts/local_voicing.py) | V3 配位表示、简单织体与 MIDI 导出 |
-| [`scripts/rhythm_v4.py`](scripts/rhythm_v4.py)、[`scripts/rhythm_v5.py`](scripts/rhythm_v5.py) | 真实伴奏投影、节奏表示和 V5 解码 |
-| [`scripts/train_rhythm_v5.py`](scripts/train_rhythm_v5.py)、[`scripts/generate_rhythm_v5.py`](scripts/generate_rhythm_v5.py) | 训练对照与可控生成 |
-| [`scripts/render_piano_preview.py`](scripts/render_piano_preview.py) | 相同采样钢琴与共同增益的试听渲染 |
-| [`examples/harmony/`](examples/harmony/) | 来源校验、曲目划分、输入样例和绑定媒体哈希的听审记录 |
+## 数据与许可
 
-`generate_from_scratch.py` 仍是旧 TSD V2 入口，不会自动调用 V4/V5。`MIDI/`、`data/`、`model_output/`、`test/` 和本地回归测试目录 `tests/` 均由 Git 忽略；评估、核验脚本继续保留在 `scripts/`。项目许可见 [LICENSE](LICENSE)。
+标准数据池包含 811 首 POP909-CL 和 22,889 个 Hooktheory 片段；织体使用经筛选的四小节 4/4 窗口，仅监督 PIANO 伴奏，原旋律在生成后合并保留。划分按作品组隔离，但上游预训练可能接触过公共语料。
+
+源码许可见 [LICENSE](LICENSE)，上游声明见 [THIRD_PARTY_NOTICES.txt](examples/auto_accompaniment/THIRD_PARTY_NOTICES.txt)。数据来源、版本和限制见 [data_sources.json](examples/auto_accompaniment/data_sources.json)，官方模型来源见 [model_sources.json](examples/auto_accompaniment/model_sources.json)。Hooktheory 数据采用 CC BY-NC-SA 3.0；代码许可不替代数据及作品权利。当前微调模型仅做私有研究备份，尚未公开托管于 Hugging Face。

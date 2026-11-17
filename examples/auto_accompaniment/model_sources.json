@@ -1,0 +1,129 @@
+{
+  "schema_version": 1,
+  "models": [
+    {
+      "id": "realchords",
+      "directory": "data/auto_accompaniment/upstream/realchords",
+      "manifest_filename": "source_manifest.json",
+      "manifest": {
+        "source_commit": "75a63248a94d2139776ec9ddc20daf4c5be3cd07",
+        "huggingface_revision": "fc9954eb2da0c3de2ee33caa2c42b40ba2463a55",
+        "files": [
+          {
+            "relpath": "source/realchords/model/gen_model.py",
+            "url": "https://raw.githubusercontent.com/lukewys/realchords-pytorch/75a63248a94d2139776ec9ddc20daf4c5be3cd07/realchords/model/gen_model.py",
+            "sha256": "6ddeaaa62e97cda02bb5bc154d17bfb9a515b58b8989a71e2bbad0c96ba99b74",
+            "bytes": 17174
+          },
+          {
+            "relpath": "source/realchords/model/sampling.py",
+            "url": "https://raw.githubusercontent.com/lukewys/realchords-pytorch/75a63248a94d2139776ec9ddc20daf4c5be3cd07/realchords/model/sampling.py",
+            "sha256": "f45324e7063a4fe8eaf6c05faeed089af16f6dbef1f9a8df2b0e43abf58805ea",
+            "bytes": 9362
+          },
+          {
+            "relpath": "source/realchords/nn/transformers.py",
+            "url": "https://raw.githubusercontent.com/lukewys/realchords-pytorch/75a63248a94d2139776ec9ddc20daf4c5be3cd07/realchords/nn/transformers.py",
+            "sha256": "ffda5163ed2120cd3e283fee2a48afaf4fd9f0957eb80d0cdd64934f277ae488",
+            "bytes": 1919
+          },
+          {
+            "relpath": "source/LICENSE",
+            "url": "https://raw.githubusercontent.com/lukewys/realchords-pytorch/75a63248a94d2139776ec9ddc20daf4c5be3cd07/LICENSE",
+            "sha256": "148ef5e0b642891ea8006ad54ad4a7fdc02345519e4401f14d6e4360ef6a652c",
+            "bytes": 1066
+          },
+          {
+            "relpath": "weights/chord_names_augmented.json",
+            "url": "https://huggingface.co/lukewys/realchords-pytorch/resolve/fc9954eb2da0c3de2ee33caa2c42b40ba2463a55/chord_names_augmented.json",
+            "sha256": "17db1594d39324492ee263e068da5fc6100015c34b7e82fbd734de2f7636cb2b",
+            "bytes": 40320
+          },
+          {
+            "relpath": "weights/args.yml",
+            "url": "https://huggingface.co/lukewys/realchords-pytorch/resolve/fc9954eb2da0c3de2ee33caa2c42b40ba2463a55/enc_dec_base_chord_3_datasets/args.yml",
+            "sha256": "dae86559e40918ddf7a642ce0562110121d9885c02d75b2829e7b480ad5c519e",
+            "bytes": 1369
+          },
+          {
+            "relpath": "weights/step=13000.ckpt",
+            "url": "https://huggingface.co/lukewys/realchords-pytorch/resolve/fc9954eb2da0c3de2ee33caa2c42b40ba2463a55/enc_dec_base_chord_3_datasets/step=13000.ckpt",
+            "sha256": "e0e5f43f56c83506d77fa71e17aee5033eff64b513cdb1deba795a5204f78cba",
+            "bytes": 1016250418
+          }
+        ],
+        "source_license": "MIT",
+        "source_license_path": "source/LICENSE",
+        "minimum_source_files": [
+          "realchords/model/gen_model.py",
+          "realchords/model/sampling.py",
+          "realchords/nn/transformers.py",
+          "LICENSE"
+        ],
+        "notes": "Only offline model imported, no RL/OpenRLHF training code required."
+      }
+    },
+    {
+      "id": "compose_embellish",
+      "directory": "data/auto_accompaniment/upstream/compose_embellish",
+      "manifest_filename": "manifest.json",
+      "manifest": {
+        "schema_version": 1,
+        "repository": "slSeanWU/Compose_and_Embellish",
+        "git_commit": "e74ea2b301525ef60105b2ede530b862e64180c2",
+        "hf_repository": "slseanwu/compose-and-embellish-pop1k7",
+        "hf_revision": "fc173db90e13a1137f3ae4322011615fabe1af22",
+        "files": [
+          {
+            "path": "LICENSE",
+            "bytes": 1075,
+            "sha256": "ceb5912d9d6a9e93007b088511adddf0396ef20e7337dfd57bf2b830a9e8cb2b",
+            "url": "https://raw.githubusercontent.com/slSeanWU/Compose_and_Embellish/e74ea2b301525ef60105b2ede530b862e64180c2/LICENSE"
+          },
+          {
+            "path": "README.md",
+            "bytes": 5513,
+            "sha256": "75f166a5d703e6c9c891b27adfeac37a7c217bbeb46ac1a9565d764be29d4c92",
+            "url": "https://raw.githubusercontent.com/slSeanWU/Compose_and_Embellish/e74ea2b301525ef60105b2ede530b862e64180c2/README.md"
+          },
+          {
+            "path": "stage02_embellish/model/music_gpt2.py",
+            "bytes": 3404,
+            "sha256": "d9943e50119f8218c299918e243988f04d3c869d98ec2eaf27c3579bfa8ae7c6",
+            "url": "https://raw.githubusercontent.com/slSeanWU/Compose_and_Embellish/e74ea2b301525ef60105b2ede530b862e64180c2/stage02_embellish/model/music_gpt2.py"
+          },
+          {
+            "path": "stage02_embellish/model/transformer_helpers.py",
+            "bytes": 2659,
+            "sha256": "bfd719861a926e80f5eefa11f5819aaca40d9768ea61ab1fa1c5287d4554b3d4",
+            "url": "https://raw.githubusercontent.com/slSeanWU/Compose_and_Embellish/e74ea2b301525ef60105b2ede530b862e64180c2/stage02_embellish/model/transformer_helpers.py"
+          },
+          {
+            "path": "stage02_embellish/vocab/skyline2midi_vocab.pkl",
+            "bytes": 8070,
+            "sha256": "37263844aea6e014d0d1c5d6dc745dcada6bc4548445c4ca38a4edf45a36150f",
+            "url": "https://raw.githubusercontent.com/slSeanWU/Compose_and_Embellish/e74ea2b301525ef60105b2ede530b862e64180c2/stage02_embellish/vocab/skyline2midi_vocab.pkl"
+          },
+          {
+            "path": "stage02_embellish/config/pop1k7_gpt2.yaml",
+            "bytes": 1159,
+            "sha256": "3e9a8f4030e4883ddf290b571a8927c5535ec9c6baa80a1870f0511d10a3cda7",
+            "url": "https://raw.githubusercontent.com/slSeanWU/Compose_and_Embellish/e74ea2b301525ef60105b2ede530b862e64180c2/stage02_embellish/config/pop1k7_gpt2.yaml"
+          },
+          {
+            "path": "stage02_embellish/convert2midi.py",
+            "bytes": 5234,
+            "sha256": "403849cf9861f6cfa4d20338be6745fee3cc797d225fea9d9f649cf5f07477ec",
+            "url": "https://raw.githubusercontent.com/slSeanWU/Compose_and_Embellish/e74ea2b301525ef60105b2ede530b862e64180c2/stage02_embellish/convert2midi.py"
+          },
+          {
+            "path": "embellish_model_gpt2_pop1k7_loss0.398.bin",
+            "bytes": 378792709,
+            "sha256": "abefdb7c4df8406a7e92f096c83dab0e9cad797f6bd9a2c2e15526da1d2a4b86",
+            "url": "https://huggingface.co/slseanwu/compose-and-embellish-pop1k7/resolve/fc173db90e13a1137f3ae4322011615fabe1af22/embellish_model_gpt2_pop1k7_loss0.398.bin"
+          }
+        ]
+      }
+    }
+  ]
+}

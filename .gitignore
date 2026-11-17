@@ -1,8 +1,11 @@
 .deps/
+archive/
 .venv/
 MIDI/
 data/
 model_output/
+/checkpoint.pt
+/checkpoint(texture).pt
 tokenizer/
 test/
 tests/
@@ -11,3 +14,11 @@ generated*.mid
 _external_vue_piano/
 __pycache__/
 *.pyc
+
+# GitHub 仅保留训练主线；本地试听与历史说明继续保留。
+/docs/
+/scripts/audition_auto_harmony.py
+/scripts/evaluate_auto_accompaniment.py
+/scripts/generate_auto_accompaniment.py
+/scripts/render_piano_preview.py
+/scripts/setup_piano_renderer.py
