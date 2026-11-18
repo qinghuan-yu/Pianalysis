@@ -1,0 +1,20 @@
+<p>请用相同设备和音量听完六对片段。每对的旋律与和声相同，伴奏处理不同。可反复比较；不必猜哪一边是模型。不收集个人信息。</p>
+<form id="ballot">{{questions}}<p>页面不保存或上传答案。完成后下载答卷并交给组织者；关闭页面前请先导出。</p>
+<button type="submit">下载匿名答卷（CSV）</button></form>
+<script>
+document.getElementById('ballot').addEventListener('submit', event => {
+  event.preventDefault();
+  const answers = new FormData(event.currentTarget);
+  const rows = ['session,pair,clarity,texture'];
+  for (let index = 1; index <= 6; index++) {
+    const pair = String(index).padStart(2, '0');
+    rows.push(['{{session}}', pair, answers.get(pair + '_clarity'), answers.get(pair + '_texture')].join(','));
+  }
+  const url = URL.createObjectURL(new Blob([rows.join('\n') + '\n'], {type:'text/csv;charset=utf-8'}));
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = 'pianalysis-{{session}}-' + Date.now() + '.csv';
+  link.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+});
+</script>

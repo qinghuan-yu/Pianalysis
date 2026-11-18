@@ -15,10 +15,9 @@ _external_vue_piano/
 __pycache__/
 *.pyc
 
-# GitHub 仅保留训练主线；本地试听与历史说明继续保留。
+# 推理、评测和发布工具可公开；训练素材、权重和生成的发布包仅保留在本地。
+/.codegraph/
 /docs/
 /scripts/audition_auto_harmony.py
-/scripts/evaluate_auto_accompaniment.py
-/scripts/generate_auto_accompaniment.py
 /scripts/render_piano_preview.py
 /scripts/setup_piano_renderer.py

@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="zh-CN">
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{title}} · Pianalysis</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#faf9f5;color:#202a27;font:1rem/1.65 system-ui,sans-serif}
+main{max-width:60rem;margin:auto;padding:clamp(1rem,5vw,4rem)}header{border-bottom:3px solid #243c33}
+header p,small{color:#4b6459}header p{letter-spacing:.13em}h1{font:600 clamp(2rem,6vw,3.3rem)/1.2 Georgia,serif;margin:.35em 0}
+section{padding:1rem 0 1.5rem;border-bottom:1px solid #b8c3ba}h2{margin:.6rem 0;font-size:1.25rem}
+small{font-size:.8rem;font-weight:400}summary{cursor:pointer;color:#23523d;padding:.6rem 0}
+.players{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,14rem),1fr));gap:1rem}
+label{display:grid;gap:.35rem;align-content:start}audio,select{width:100%}select,button{font:inherit;padding:.4rem}
+button{background:#244634;color:white;border:0;padding:.65rem 1.2rem;cursor:pointer}
+</style>
+<main><header><p>PIANALYSIS &nbsp; / &nbsp; LISTENING ROOM</p><h1>{{title}}</h1></header>{{content}}
+<footer><p>音乐：Pianalysis 清棫 · <a href="MEDIA-LICENSE.md">CC BY-NC 4.0（署名，非商业使用）</a></p></footer></main>
+<script>
+document.addEventListener('play', event => {
+  if (event.target.matches('audio')) {
+    document.querySelectorAll('audio').forEach(player => { if (player !== event.target) player.pause(); });
+  }
+}, true);
+</script>
+</html>

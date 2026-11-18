@@ -4,6 +4,10 @@
 
 Pianalysis 把钢琴伴奏生成拆成两个可以分别训练、分别检查的阶段：先从旋律预测带时间信息的和弦进行，再以旋律和和声为条件生成伴奏织体。两个阶段分别微调自 [ReaLchords](https://github.com/lukewys/realchords-pytorch) 和 [Compose & Embellish](https://github.com/slSeanWU/Compose_and_Embellish)。
 
+**先听《纸鸢》（无需模型）：** [原旋律](examples/probe_release/paper_kite_melody.mp3) → [柱式和弦](examples/probe_release/paper_kite_block.mp3) → [模型织体](examples/probe_release/paper_kite_texture_42.mp3)。后两段用的是同一条自动和弦计划，可直接比较伴奏写法。此例是推理前选定的诊断旋律之一，不是申请人的手写作品。音频使用 [GeneralUser GS](https://www.schristiancollins.com/generaluser.php) 渲染，不随附音色库。
+
+**For reviewers:** listen to the melody, block-chord baseline and learned texture above, in order. The harmony is held fixed in the last two clips. See the [research and reproduction notes](examples/probe_release/RESEARCH.md) for training settings, data splits, listening protocol and limits.
+
 ```mermaid
 flowchart LR
     M["旋律 MIDI"] --> H["阶段一：自动和声"]
@@ -43,8 +47,8 @@ flowchart LR
 
 最终以听审结果为准。前期实验发现 loss、和弦内音比例这类指标和实际听感并不总是一致：V5 部分指标比 V4 好，听审时却还是选了 V4。
 
-- **5 段自写旋律**（各 8 小节）：自动和声先经柱式试听确认，再原样用于织体生成，没有手动修改，整体通过听审。
-- **24 段新旋律 × 3 个固定种子**，一共 72 次织体生成，串联试听整体通过。
+- **5 段由助手构造的旋律**（各 8 小节）：自动和声先经柱式试听确认，再原样用于织体生成，没有手动修改，整体通过听审。
+- **24 段另外构造的诊断旋律 × 3 个固定种子**，共 72 次织体生成。记录是单人对整批的总体认可，没有逐例、逐种子评分，也不是独立盲听结果。
 
 ## 局限与下一步
 
@@ -70,7 +74,7 @@ python scripts/run_auto_training.py harmony --output-dir model_output/harmony_ru
 python scripts/run_auto_training.py texture --output-dir model_output/texture_run1 --max-hours 2
 ```
 
-训练配置见 [harmony_train.json](examples/auto_accompaniment/harmony_train.json) 和 [texture_train.json](examples/auto_accompaniment/texture_train.json)。续训时加 `--resume <运行目录>/last.pt`，脚本会检查数据和训练配置是否与原运行一致。上面结果表中的模型是在 Colab 上训练的，实际配置（精度、梯度累积等）以 checkpoint 中保存的为准，和示例配置不完全相同。
+默认配置是训练示例。要使用入选运行的参数，分别加 `--config examples/auto_accompaniment/harmony_selected.json` 或 `--config examples/auto_accompaniment/texture_selected.json`；和声配置的输入、输出路径已改为仓库相对路径。运行器会按本机的时长上限重算训练预算，不保证在同一步停止。续训时加 `--resume <运行目录>/last.pt`。用自己的微调权重跑[八小节推理与评测示例](examples/probe_release/RESEARCH.md#run-one-probe)不需要取得我们的权重。
 
 ### Colab
 
@@ -89,3 +93,7 @@ python scripts/package_auto_training.py
 | [Hooktheory](https://github.com/chrisdonahue/sheetsage)（CC BY-NC-SA 3.0） | 22,889 个片段 | 仅和声 |
 
 代码采用 [LICENSE](LICENSE) 中的许可，代码许可不覆盖数据及作品本身的权利。上游项目声明见 [THIRD_PARTY_NOTICES.txt](examples/auto_accompaniment/THIRD_PARTY_NOTICES.txt)，数据和模型的来源与版本见 [data_sources.json](examples/auto_accompaniment/data_sources.json) 和 [model_sources.json](examples/auto_accompaniment/model_sources.json)。微调后的权重暂不公开。
+
+[最终样本划分表](examples/auto_accompaniment/accepted_splits.tsv)仅含样本 ID、作品组 ID、来源和集合，不含音符。训练曲库与可还原原曲的 token 不打包；诊断样例不是训练集。
+
+**示例音乐采用 [CC BY-NC 4.0](examples/probe_release/MEDIA-LICENSE.md)，不是 MIT。** 非商业使用可复制、分享和改编；分享时请署名「Pianalysis 清棫」、附来源与许可链接并注明改动。商业使用须另行授权。此许可不涵盖第三方曲库、权重或音色库。
