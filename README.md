@@ -6,6 +6,8 @@ Pianalysis 把钢琴伴奏生成拆成两个可以分别训练、分别检查的
 
 **先听《纸鸢》（无需模型）：** [原旋律](examples/probe_release/paper_kite_melody.mp3) → [柱式和弦](examples/probe_release/paper_kite_block.mp3) → [模型织体](examples/probe_release/paper_kite_texture_42.mp3)。后两段用的是同一条自动和弦计划，可直接比较伴奏写法。此例是推理前选定的诊断旋律之一，不是申请人的手写作品。音频使用 [GeneralUser GS](https://www.schristiancollins.com/generaluser.php) 渲染，不随附音色库。
 
+**[完整试听集 · Hugging Face](https://huggingface.co/datasets/Qing-UU/Pianalysis-Listening-Probes)**：24 段旋律，每段可对照原旋律、柱式和弦和三个种子的模型织体；WAV 和 MIDI 均可下载，无需登录。
+
 **For reviewers:** listen to the melody, block-chord baseline and learned texture above, in order. The harmony is held fixed in the last two clips. See the [research and reproduction notes](examples/probe_release/RESEARCH.md) for training settings, data splits, listening protocol and limits.
 
 ```mermaid
